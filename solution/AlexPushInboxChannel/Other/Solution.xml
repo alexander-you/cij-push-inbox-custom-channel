@@ -1,0 +1,116 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ImportExportXml version="9.2.26104.157" SolutionPackageVersion="9.2" languagecode="1033" generatedBy="CrmLive" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" OrganizationVersion="9.2.26104.157" OrganizationSchemaType="Full" CRMServerServiceabilityVersion="9.2.26104.00157">
+  <SolutionManifest>
+    <UniqueName>AlexPushInboxChannel</UniqueName>
+    <LocalizedNames>
+      <LocalizedName description="Customer Insights Journeys - Push Inbox Channel" languagecode="1033" />
+      <LocalizedName description="Customer Insights Journeys - ערוץ פוש ותיבת הודעות" languagecode="1037" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="Custom channel for Dynamics 365 Customer Insights - Journeys that sends push notifications with a persistent in-app inbox." languagecode="1033" />
+      <Description description="ערוץ מותאם אישית עבור Dynamics 365 Customer Insights - Journeys, השולח התראות פוש עם תיבת הודעות קבועה בתוך האפליקציה." languagecode="1037" />
+    </Descriptions>
+    <Version>1.0.0.0</Version>
+    <Managed>0</Managed>
+    <Publisher>
+      <UniqueName>AlexanderYurpolsky</UniqueName>
+      <LocalizedNames>
+        <LocalizedName description="AlexanderYurpolsky" languagecode="1033" />
+        <LocalizedName description="אלכסנדר יורפולסקי" languagecode="1037" />
+      </LocalizedNames>
+      <Descriptions>
+        <Description description="AlexanderYurpolsky" languagecode="1033" />
+        <Description description="אלכסנדר יורפולסקי" languagecode="1037" />
+      </Descriptions>
+      <EMailAddress xsi:nil="true"></EMailAddress>
+      <SupportingWebsiteUrl xsi:nil="true"></SupportingWebsiteUrl>
+      <CustomizationPrefix>alex</CustomizationPrefix>
+      <CustomizationOptionValuePrefix>62621</CustomizationOptionValuePrefix>
+      <Addresses>
+        <Address>
+          <AddressNumber>1</AddressNumber>
+          <AddressTypeCode>1</AddressTypeCode>
+          <City xsi:nil="true"></City>
+          <County xsi:nil="true"></County>
+          <Country xsi:nil="true"></Country>
+          <Fax xsi:nil="true"></Fax>
+          <FreightTermsCode xsi:nil="true"></FreightTermsCode>
+          <ImportSequenceNumber xsi:nil="true"></ImportSequenceNumber>
+          <Latitude xsi:nil="true"></Latitude>
+          <Line1 xsi:nil="true"></Line1>
+          <Line2 xsi:nil="true"></Line2>
+          <Line3 xsi:nil="true"></Line3>
+          <Longitude xsi:nil="true"></Longitude>
+          <Name xsi:nil="true"></Name>
+          <PostalCode xsi:nil="true"></PostalCode>
+          <PostOfficeBox xsi:nil="true"></PostOfficeBox>
+          <PrimaryContactName xsi:nil="true"></PrimaryContactName>
+          <ShippingMethodCode>1</ShippingMethodCode>
+          <StateOrProvince xsi:nil="true"></StateOrProvince>
+          <Telephone1 xsi:nil="true"></Telephone1>
+          <Telephone2 xsi:nil="true"></Telephone2>
+          <Telephone3 xsi:nil="true"></Telephone3>
+          <TimeZoneRuleVersionNumber xsi:nil="true"></TimeZoneRuleVersionNumber>
+          <UPSZone xsi:nil="true"></UPSZone>
+          <UTCOffset xsi:nil="true"></UTCOffset>
+          <UTCConversionTimeZoneCode xsi:nil="true"></UTCConversionTimeZoneCode>
+        </Address>
+        <Address>
+          <AddressNumber>2</AddressNumber>
+          <AddressTypeCode>1</AddressTypeCode>
+          <City xsi:nil="true"></City>
+          <County xsi:nil="true"></County>
+          <Country xsi:nil="true"></Country>
+          <Fax xsi:nil="true"></Fax>
+          <FreightTermsCode xsi:nil="true"></FreightTermsCode>
+          <ImportSequenceNumber xsi:nil="true"></ImportSequenceNumber>
+          <Latitude xsi:nil="true"></Latitude>
+          <Line1 xsi:nil="true"></Line1>
+          <Line2 xsi:nil="true"></Line2>
+          <Line3 xsi:nil="true"></Line3>
+          <Longitude xsi:nil="true"></Longitude>
+          <Name xsi:nil="true"></Name>
+          <PostalCode xsi:nil="true"></PostalCode>
+          <PostOfficeBox xsi:nil="true"></PostOfficeBox>
+          <PrimaryContactName xsi:nil="true"></PrimaryContactName>
+          <ShippingMethodCode>1</ShippingMethodCode>
+          <StateOrProvince xsi:nil="true"></StateOrProvince>
+          <Telephone1 xsi:nil="true"></Telephone1>
+          <Telephone2 xsi:nil="true"></Telephone2>
+          <Telephone3 xsi:nil="true"></Telephone3>
+          <TimeZoneRuleVersionNumber xsi:nil="true"></TimeZoneRuleVersionNumber>
+          <UPSZone xsi:nil="true"></UPSZone>
+          <UTCOffset xsi:nil="true"></UTCOffset>
+          <UTCConversionTimeZoneCode xsi:nil="true"></UTCConversionTimeZoneCode>
+        </Address>
+      </Addresses>
+    </Publisher>
+    <RootComponents>
+      <RootComponent type="1" schemaName="alex_pushchannelinstance" behavior="0" />
+      <RootComponent type="1" schemaName="msdyn_channelinstance" behavior="1" />
+      <RootComponent type="91" id="{e1502cab-4fe7-f111-84e7-7ced8d726840}" schemaName="Alex.PushInbox.Plugins, Version=1.0.0.0, Culture=neutral, PublicKeyToken=9463c92e61eee4c1" behavior="0" />
+    </RootComponents>
+    <MissingDependencies>
+      <MissingDependency>
+        <Required type="1" schemaName="msdyn_channelinstance" displayName="Channel Instance" solution="msdyn_D365ChannelDefinitions (1.3.3647.2)">
+          <package appName="App profile manager" version="10.1.25102.1008">msdyn_AppProfileManagerAnchor (10.1.25102.1008)</package>
+          <package appName="D365ChannelDefinitionsPackage" version="1.0.1.4">msdyn_D365ChannelDefinitionsAnchor (1.0.1.4)</package>
+          <package appName="CxpSales" version="1.3.3647.44">DynamicsMKT_CxpSalesAnchorSolution (1.3.3647.44)</package>
+          <package appName="Dynamics 365 Marketing Application" version="1.3.3647.77">DynamicsMKT_AnchorSolution (1.3.3647.77)</package>
+          <package appName="appprofilemanager" version="10.1.25104.1011">msdyn_AppProfileManagerAnchor (10.1.25104.1011)</package>
+        </Required>
+        <Dependent type="1" schemaName="msdyn_channelinstance" displayName="Channel Instance" />
+      </MissingDependency>
+      <MissingDependency>
+        <Required type="2" schemaName="msdyn_extendedentityid" displayName="Extended Entity Id" parentSchemaName="msdyn_channelinstance" parentDisplayName="Channel Instance" solution="msdyn_D365ChannelDefinitions (1.3.3647.2)">
+          <package appName="App profile manager" version="10.1.25102.1008">msdyn_AppProfileManagerAnchor (10.1.25102.1008)</package>
+          <package appName="D365ChannelDefinitionsPackage" version="1.0.1.4">msdyn_D365ChannelDefinitionsAnchor (1.0.1.4)</package>
+          <package appName="CxpSales" version="1.3.3647.44">DynamicsMKT_CxpSalesAnchorSolution (1.3.3647.44)</package>
+          <package appName="Dynamics 365 Marketing Application" version="1.3.3647.77">DynamicsMKT_AnchorSolution (1.3.3647.77)</package>
+          <package appName="appprofilemanager" version="10.1.25104.1011">msdyn_AppProfileManagerAnchor (10.1.25104.1011)</package>
+        </Required>
+        <Dependent type="2" schemaName="msdyn_extendedentityid" displayName="Extended Entity Id" parentSchemaName="msdyn_channelinstance" parentDisplayName="Channel Instance" />
+      </MissingDependency>
+    </MissingDependencies>
+  </SolutionManifest>
+</ImportExportXml>

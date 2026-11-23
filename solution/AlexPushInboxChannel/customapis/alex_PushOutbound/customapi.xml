@@ -1,0 +1,20 @@
+<customapi uniquename="alex_PushOutbound">
+  <allowedcustomprocessingsteptype>0</allowedcustomprocessingsteptype>
+  <bindingtype>0</bindingtype>
+  <description default="Called by Customer Insights - Journeys to send one push and inbox message. Forwards it to the Azure Channel API.">
+    <label description="Called by Customer Insights - Journeys to send one push and inbox message. Forwards it to the Azure Channel API." languagecode="1033" />
+    <label description="מופעל על-ידי Customer Insights - Journeys לשליחת הודעת פוש והודעה לתיבת ההודעות. מעביר את ההודעה לממשק ה-API של הערוץ ב-Azure." languagecode="1037" />
+  </description>
+  <displayname default="Push outbound">
+    <label description="Push outbound" languagecode="1033" />
+    <label description="שליחת פוש" languagecode="1037" />
+  </displayname>
+  <iscustomizable>0</iscustomizable>
+  <isfunction>0</isfunction>
+  <isprivate>0</isprivate>
+  <name>alex_PushOutbound</name>
+  <plugintypeid>
+    <plugintypeexportkey>07512cab-4fe7-f111-84e7-7ced8d726840</plugintypeexportkey>
+  </plugintypeid>
+  <workflowsdkstepenabled>0</workflowsdkstepenabled>
+</customapi>

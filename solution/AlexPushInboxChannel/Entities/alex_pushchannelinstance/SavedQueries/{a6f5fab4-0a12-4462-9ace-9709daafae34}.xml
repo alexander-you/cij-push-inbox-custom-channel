@@ -1,0 +1,35 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{a6f5fab4-0a12-4462-9ace-9709daafae34}</savedqueryid>
+    <layoutxml>
+      <grid name="resultset" jump="alex_name" select="1" icon="1" preview="1">
+        <row name="result" id="alex_pushchannelinstanceid">
+          <cell name="alex_name" width="300" />
+          <cell name="createdon" width="125" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>1</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="alex_pushchannelinstance">
+          <attribute name="alex_pushchannelinstanceid" />
+          <attribute name="alex_name" />
+          <attribute name="createdon" />
+          <order attribute="alex_name" descending="false" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Push sender Advanced Find View" languagecode="1033" />
+      <LocalizedName description="תצוגת חיפוש מתקדם של שולחי פוש" languagecode="1037" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

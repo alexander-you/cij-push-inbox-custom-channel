@@ -1,0 +1,14 @@
+# Manual only: GitHub-hosted runners aren't available for this repository.
+# The same check runs locally in the pre-commit hook (.githooks/pre-commit, enable with tools/setup-hooks.sh).
+name: solution-check
+on:
+  workflow_dispatch:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python3 tests/solution/check_solution.py

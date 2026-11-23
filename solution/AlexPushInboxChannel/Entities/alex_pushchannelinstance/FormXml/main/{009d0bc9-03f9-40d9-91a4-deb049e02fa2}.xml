@@ -1,0 +1,70 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{009d0bc9-03f9-40d9-91a4-deb049e02fa2}</formid>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{C1E53BAD-88E4-4830-BA69-EA9C661240C3}" IsUserDefined="1">
+          <labels>
+            <label description="General" languagecode="1033" />
+            <label description="כללי" languagecode="1037" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{79D62A3B-6EB2-46BF-91DA-363DFA77AFFE}">
+                  <labels>
+                    <label description="General" languagecode="1033" />
+                    <label description="כללי" languagecode="1037" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{1b714fb8-b0d0-47c9-a8d5-a1cfbc92a92e}" showlabel="true" locklevel="0">
+                        <labels>
+                          <label description="App key" languagecode="1033" />
+                          <label description="מפתח אפליקציה" languagecode="1037" />
+                        </labels>
+                        <control id="alex_appkey" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="alex_appkey" disabled="false" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{611ad579-e569-4b62-8c29-3cff37995211}" showlabel="true" locklevel="0">
+                        <labels>
+                          <label description="Default inbox expiry (days)" languagecode="1033" />
+                          <label description="תוקף ברירת מחדל בתיבת ההודעות (ימים)" languagecode="1037" />
+                        </labels>
+                        <control id="alex_defaultexpirydays" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="alex_defaultexpirydays" disabled="false" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{305206f5-075f-4db5-8457-2f1f2321a4fe}" showlabel="true" locklevel="0">
+                        <labels>
+                          <label description="Channel API key" languagecode="1033" />
+                          <label description="מפתח API של הערוץ" languagecode="1037" />
+                        </labels>
+                        <control id="alex_channelapikey" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="alex_channelapikey" disabled="false" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+      <LocalizedName description="מידע" languagecode="1037" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="Settings shown in the Customer Insights - Journeys channel setup wizard." languagecode="1033" />
+      <Description description="ההגדרות המוצגות באשף הגדרת הערוץ של Customer Insights - Journeys." languagecode="1037" />
+    </Descriptions>
+  </systemform>
+</forms>

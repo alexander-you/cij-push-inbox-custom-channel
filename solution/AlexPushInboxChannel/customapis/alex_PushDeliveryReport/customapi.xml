@@ -1,0 +1,20 @@
+<customapi uniquename="alex_PushDeliveryReport">
+  <allowedcustomprocessingsteptype>0</allowedcustomprocessingsteptype>
+  <bindingtype>0</bindingtype>
+  <description default="Called by the Azure Dispatcher to report whether a message was delivered. Relays the report to Customer Insights - Journeys.">
+    <label description="Called by the Azure Dispatcher to report whether a message was delivered. Relays the report to Customer Insights - Journeys." languagecode="1033" />
+    <label description="מופעל על-ידי שירות השליחה ב-Azure כדי לדווח אם ההודעה נמסרה. מעביר את הדיווח אל Customer Insights - Journeys." languagecode="1037" />
+  </description>
+  <displayname default="Push delivery report">
+    <label description="Push delivery report" languagecode="1033" />
+    <label description="דוח מסירת פוש" languagecode="1037" />
+  </displayname>
+  <iscustomizable>0</iscustomizable>
+  <isfunction>0</isfunction>
+  <isprivate>0</isprivate>
+  <name>alex_PushDeliveryReport</name>
+  <plugintypeid>
+    <plugintypeexportkey>0a512cab-4fe7-f111-84e7-7ced8d726840</plugintypeexportkey>
+  </plugintypeid>
+  <workflowsdkstepenabled>0</workflowsdkstepenabled>
+</customapi>

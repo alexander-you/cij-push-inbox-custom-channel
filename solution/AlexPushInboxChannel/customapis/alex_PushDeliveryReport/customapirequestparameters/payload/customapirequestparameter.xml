@@ -1,0 +1,14 @@
+<customapirequestparameter uniquename="payload">
+  <description default="Message payload as JSON.">
+    <label description="Message payload as JSON." languagecode="1033" />
+    <label description="תוכן ההודעה בפורמט JSON." languagecode="1037" />
+  </description>
+  <displayname default="Payload">
+    <label description="Payload" languagecode="1033" />
+    <label description="תוכן ההודעה" languagecode="1037" />
+  </displayname>
+  <iscustomizable>0</iscustomizable>
+  <isoptional>0</isoptional>
+  <name>alex_PushDeliveryReport.payload</name>
+  <type>10</type>
+</customapirequestparameter>

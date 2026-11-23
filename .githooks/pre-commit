@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Runs the solution and localization checks before every commit. Blocks the commit on failure.
+# Enable once per clone: tools/setup-hooks.sh. Bypass in an emergency: git commit --no-verify.
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+command -v python3 >/dev/null || { echo "pre-commit: python3 is required." >&2; exit 1; }
+echo "pre-commit: solution and localization check"
+if ! python3 tests/solution/check_solution.py; then
+  echo "pre-commit: check failed. Fix the errors (try: python3 tests/solution/check_solution.py --fix), then commit again." >&2
+  exit 1
+fi
+for f in deploy/*.sh tools/*.sh .githooks/*; do
+  [[ -f "$f" ]] && bash -n "$f"
+done

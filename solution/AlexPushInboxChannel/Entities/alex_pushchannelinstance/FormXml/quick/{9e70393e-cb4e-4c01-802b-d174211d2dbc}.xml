@@ -1,0 +1,56 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{9e70393e-cb4e-4c01-802b-d174211d2dbc}</formid>
+    <IntroducedVersion>1.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab verticallayout="true" id="{7D5211CA-6C90-4951-99BF-439E0870D183}" IsUserDefined="1">
+          <labels>
+            <label description="" languagecode="1037" />
+          </labels>
+          <columns>
+            <column width="100%">
+              <sections>
+                <section showlabel="false" showbar="false" IsUserDefined="0" id="{ABBA067D-7D33-40AB-A20D-0AAC1C800A72}">
+                  <labels>
+                    <label description="GENERAL" languagecode="1033" />
+                    <label description="כללי" languagecode="1037" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{20BE3C7C-BF61-42E2-8721-2730A64B1848}">
+                        <labels>
+                          <label description="Name" languagecode="1033" />
+                          <label description="שם" languagecode="1037" />
+                        </labels>
+                        <control id="alex_name" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="alex_name" />
+                      </cell>
+                    </row>
+                    <row>
+                      <cell id="{6DEB6F5D-B0E8-41DF-9C94-51CDB913C23F}">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                          <label description="בעלים" languagecode="1037" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+      <LocalizedName description="מידע" languagecode="1037" />
+    </LocalizedNames>
+  </systemform>
+</forms>

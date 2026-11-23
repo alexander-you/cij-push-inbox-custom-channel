@@ -1,0 +1,13 @@
+<customapiresponseproperty uniquename="response">
+  <description default="Result as JSON.">
+    <label description="Result as JSON." languagecode="1033" />
+    <label description="התוצאה בפורמט JSON." languagecode="1037" />
+  </description>
+  <displayname default="Response">
+    <label description="Response" languagecode="1033" />
+    <label description="תגובה" languagecode="1037" />
+  </displayname>
+  <iscustomizable>0</iscustomizable>
+  <name>alex_PushOutbound.response</name>
+  <type>10</type>
+</customapiresponseproperty>

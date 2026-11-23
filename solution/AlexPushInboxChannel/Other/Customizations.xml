@@ -1,0 +1,200 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ImportExportXml xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" OrganizationVersion="9.2.26104.157" OrganizationSchemaType="Full" CRMServerServiceabilityVersion="9.2.26104.00157">
+  <Entities />
+  <Roles />
+  <Workflows />
+  <FieldSecurityProfiles />
+  <Templates />
+  <EntityMaps />
+  <EntityRelationships />
+  <OrganizationSettings />
+  <optionsets />
+  <CustomControls />
+  <SolutionPluginAssemblies />
+  <EntityDataProviders />
+  <msdyn_channeldefinitionlocales>
+    <msdyn_channeldefinitionlocale msdyn_channeldefinitionlocaleid="a2ba9584-05e7-45de-ac7f-7fa3715da92f">
+      <iscustomizable>1</iscustomizable>
+      <msdyn_channeldefinitionid>
+        <msdyn_channeldefinitionid>b0d2cb5f-fc8a-4f71-88fd-3f494aee6df2</msdyn_channeldefinitionid>
+      </msdyn_channeldefinitionid>
+      <msdyn_localecontent>{
+  "ChannelDefinition.DisplayName": "Push ותיבת הודעות",
+  "ChannelDefinition.Description": "שליחת התראות Push שנשמרות גם בתיבת ההודעות של הלקוח באפליקציה.",
+  "ChannelMessagePart.title.DisplayName": "כותרת",
+  "ChannelMessagePart.title.Description": "הכותרת בהתראה ונושא ההודעה בתיבת ההודעות. עד 65 תווים.",
+  "ChannelMessagePart.body.DisplayName": "הודעה",
+  "ChannelMessagePart.body.Description": "טקסט ההודעה. ההתראה עשויה לקצר אותו; תיבת ההודעות מציגה אותו במלואו.",
+  "ChannelMessagePart.imageUrl.DisplayName": "קישור לתמונה",
+  "ChannelMessagePart.imageUrl.Description": "קישור אופציונלי לתמונה שמוצגת עם ההודעה. חייב להתחיל ב-https://.",
+  "ChannelMessagePart.actionUrl.DisplayName": "קישור לפעולה בהקשה",
+  "ChannelMessagePart.actionUrl.Description": "לאן הלקוח מגיע בהקשה: דף אינטרנט או מסך באפליקציה.",
+  "ChannelMessagePart.deliveryMode.DisplayName": "אופן מסירה",
+  "ChannelMessagePart.deliveryMode.Description": "Alert + Inbox, ‏Inbox only (שקטה) או Alert only (לא נשמרת בתיבת ההודעות).",
+  "ChannelMessagePart.inboxExpiryDays.DisplayName": "תפוגה בתיבת ההודעות (ימים)",
+  "ChannelMessagePart.inboxExpiryDays.Description": "מספר הימים שההודעה נשארת בתיבת ההודעות (עד 180). ריק = ברירת המחדל של הערוץ.",
+  "ChannelMessagePart.replaceKey.DisplayName": "מפתח החלפה",
+  "ChannelMessagePart.replaceKey.Description": "אופציונלי. הודעה חדשה עם אותו מפתח מחליפה את ההודעה הקודמת."
+}</msdyn_localecontent>
+      <msdyn_localeid>1037</msdyn_localeid>
+      <statecode>0</statecode>
+      <statuscode>1</statuscode>
+    </msdyn_channeldefinitionlocale>
+    <msdyn_channeldefinitionlocale msdyn_channeldefinitionlocaleid="e5af2544-e541-4a19-8469-01cb182036da">
+      <iscustomizable>1</iscustomizable>
+      <msdyn_channeldefinitionid>
+        <msdyn_channeldefinitionid>b0d2cb5f-fc8a-4f71-88fd-3f494aee6df2</msdyn_channeldefinitionid>
+      </msdyn_channeldefinitionid>
+      <msdyn_localecontent>{
+  "ChannelDefinition.DisplayName": "Push + Inbox",
+  "ChannelDefinition.Description": "Send push notifications that are also saved to the customer's in-app inbox.",
+  "ChannelMessagePart.title.DisplayName": "Title",
+  "ChannelMessagePart.title.Description": "Headline on the notification and the inbox subject. Up to 65 characters.",
+  "ChannelMessagePart.body.DisplayName": "Message",
+  "ChannelMessagePart.body.Description": "Main message text. The notification may shorten it; the inbox shows it in full.",
+  "ChannelMessagePart.imageUrl.DisplayName": "Image link",
+  "ChannelMessagePart.imageUrl.Description": "Optional link to an image shown with the message. Must start with https://.",
+  "ChannelMessagePart.actionUrl.DisplayName": "Tap action link",
+  "ChannelMessagePart.actionUrl.Description": "Where the customer goes on tap: a web page or a screen in the app.",
+  "ChannelMessagePart.deliveryMode.DisplayName": "Delivery mode",
+  "ChannelMessagePart.deliveryMode.Description": "Alert + Inbox, Inbox only (silent), or Alert only (not saved to the inbox).",
+  "ChannelMessagePart.inboxExpiryDays.DisplayName": "Inbox expiry (days)",
+  "ChannelMessagePart.inboxExpiryDays.Description": "Days the message stays in the inbox (max 180). Leave empty for the channel default.",
+  "ChannelMessagePart.replaceKey.DisplayName": "Replace key",
+  "ChannelMessagePart.replaceKey.Description": "Optional. A newer message with the same key replaces the earlier one."
+}</msdyn_localecontent>
+      <msdyn_localeid>1033</msdyn_localeid>
+      <statecode>0</statecode>
+      <statuscode>1</statuscode>
+    </msdyn_channeldefinitionlocale>
+  </msdyn_channeldefinitionlocales>
+  <msdyn_channeldefinitions>
+    <msdyn_channeldefinition msdyn_channeldefinitionid="b0d2cb5f-fc8a-4f71-88fd-3f494aee6df2">
+      <iscustomizable>1</iscustomizable>
+      <msdyn_channeldefinitionexternalentity>alex_pushchannelinstance</msdyn_channeldefinitionexternalentity>
+      <msdyn_channeldefinitionexternalformid>009d0bc9-03f9-40d9-91a4-deb049e02fa2</msdyn_channeldefinitionexternalformid>
+      <msdyn_channeltype>Custom</msdyn_channeltype>
+      <msdyn_description>Send push notifications that are also saved to the customer's in-app inbox.</msdyn_description>
+      <msdyn_displayname>Push + Inbox</msdyn_displayname>
+      <msdyn_hasdeliveryreceipt>1</msdyn_hasdeliveryreceipt>
+      <msdyn_hasinbound>0</msdyn_hasinbound>
+      <msdyn_outboundendpointurltemplate>/alex_PushOutbound</msdyn_outboundendpointurltemplate>
+      <msdyn_specialconsentrequired>0</msdyn_specialconsentrequired>
+      <msdyn_supportsaccount>0</msdyn_supportsaccount>
+      <msdyn_supportsattachment>0</msdyn_supportsattachment>
+      <msdyn_supportsbinary>0</msdyn_supportsbinary>
+      <statecode>0</statecode>
+      <statuscode>1</statuscode>
+    </msdyn_channeldefinition>
+  </msdyn_channeldefinitions>
+  <msdyn_channelmessageparts>
+    <msdyn_channelmessagepart msdyn_channelmessagepartid="0c0b289b-d296-46bb-a7dd-021863ff7950">
+      <iscustomizable>1</iscustomizable>
+      <msdyn_channeldefinitionid>
+        <msdyn_channeldefinitionid>b0d2cb5f-fc8a-4f71-88fd-3f494aee6df2</msdyn_channeldefinitionid>
+      </msdyn_channeldefinitionid>
+      <msdyn_description>Optional link to an image shown with the message. Must start with https://.</msdyn_description>
+      <msdyn_displayname>Image link</msdyn_displayname>
+      <msdyn_isrequired>0</msdyn_isrequired>
+      <msdyn_maxlength>1000</msdyn_maxlength>
+      <msdyn_name>imageUrl</msdyn_name>
+      <msdyn_order>50</msdyn_order>
+      <msdyn_type>192350000</msdyn_type>
+      <statecode>0</statecode>
+      <statuscode>1</statuscode>
+    </msdyn_channelmessagepart>
+    <msdyn_channelmessagepart msdyn_channelmessagepartid="1b54778d-1f0c-4ff9-90ff-dce45e265f6a">
+      <iscustomizable>1</iscustomizable>
+      <msdyn_channeldefinitionid>
+        <msdyn_channeldefinitionid>b0d2cb5f-fc8a-4f71-88fd-3f494aee6df2</msdyn_channeldefinitionid>
+      </msdyn_channeldefinitionid>
+      <msdyn_description>Alert + Inbox, Inbox only (silent), or Alert only (not saved to the inbox).</msdyn_description>
+      <msdyn_displayname>Delivery mode</msdyn_displayname>
+      <msdyn_isrequired>1</msdyn_isrequired>
+      <msdyn_name>deliveryMode</msdyn_name>
+      <msdyn_options>[{"label":"Alert + Inbox","value":1},{"label":"Inbox only","value":2},{"label":"Alert only","value":3}]</msdyn_options>
+      <msdyn_order>30</msdyn_order>
+      <msdyn_type>192350008</msdyn_type>
+      <statecode>0</statecode>
+      <statuscode>1</statuscode>
+    </msdyn_channelmessagepart>
+    <msdyn_channelmessagepart msdyn_channelmessagepartid="69803b76-8096-44e0-b7cb-fd28f0b342dc">
+      <iscustomizable>1</iscustomizable>
+      <msdyn_channeldefinitionid>
+        <msdyn_channeldefinitionid>b0d2cb5f-fc8a-4f71-88fd-3f494aee6df2</msdyn_channeldefinitionid>
+      </msdyn_channeldefinitionid>
+      <msdyn_description>Optional. A newer message with the same key replaces the earlier one.</msdyn_description>
+      <msdyn_displayname>Replace key</msdyn_displayname>
+      <msdyn_isrequired>0</msdyn_isrequired>
+      <msdyn_maxlength>100</msdyn_maxlength>
+      <msdyn_name>replaceKey</msdyn_name>
+      <msdyn_order>10</msdyn_order>
+      <msdyn_type>192350000</msdyn_type>
+      <statecode>0</statecode>
+      <statuscode>1</statuscode>
+    </msdyn_channelmessagepart>
+    <msdyn_channelmessagepart msdyn_channelmessagepartid="7ece9a73-d0a7-41d0-a8b8-bf1927a4b535">
+      <iscustomizable>1</iscustomizable>
+      <msdyn_channeldefinitionid>
+        <msdyn_channeldefinitionid>b0d2cb5f-fc8a-4f71-88fd-3f494aee6df2</msdyn_channeldefinitionid>
+      </msdyn_channeldefinitionid>
+      <msdyn_description>Main message text. The notification may shorten it; the inbox shows it in full.</msdyn_description>
+      <msdyn_displayname>Message</msdyn_displayname>
+      <msdyn_isrequired>1</msdyn_isrequired>
+      <msdyn_maxlength>1000</msdyn_maxlength>
+      <msdyn_name>body</msdyn_name>
+      <msdyn_order>60</msdyn_order>
+      <msdyn_type>192350000</msdyn_type>
+      <statecode>0</statecode>
+      <statuscode>1</statuscode>
+    </msdyn_channelmessagepart>
+    <msdyn_channelmessagepart msdyn_channelmessagepartid="8bead5a8-df95-4d52-b681-a15e812568e0">
+      <iscustomizable>1</iscustomizable>
+      <msdyn_channeldefinitionid>
+        <msdyn_channeldefinitionid>b0d2cb5f-fc8a-4f71-88fd-3f494aee6df2</msdyn_channeldefinitionid>
+      </msdyn_channeldefinitionid>
+      <msdyn_description>Days the message stays in the inbox (max 180). Leave empty for the channel default.</msdyn_description>
+      <msdyn_displayname>Inbox expiry (days)</msdyn_displayname>
+      <msdyn_isrequired>0</msdyn_isrequired>
+      <msdyn_name>inboxExpiryDays</msdyn_name>
+      <msdyn_order>20</msdyn_order>
+      <msdyn_type>192350006</msdyn_type>
+      <statecode>0</statecode>
+      <statuscode>1</statuscode>
+    </msdyn_channelmessagepart>
+    <msdyn_channelmessagepart msdyn_channelmessagepartid="cff47e91-ea45-4982-8ec2-8a511009e328">
+      <iscustomizable>1</iscustomizable>
+      <msdyn_channeldefinitionid>
+        <msdyn_channeldefinitionid>b0d2cb5f-fc8a-4f71-88fd-3f494aee6df2</msdyn_channeldefinitionid>
+      </msdyn_channeldefinitionid>
+      <msdyn_description>Headline on the notification and the inbox subject. Up to 65 characters.</msdyn_description>
+      <msdyn_displayname>Title</msdyn_displayname>
+      <msdyn_isrequired>1</msdyn_isrequired>
+      <msdyn_maxlength>65</msdyn_maxlength>
+      <msdyn_name>title</msdyn_name>
+      <msdyn_order>70</msdyn_order>
+      <msdyn_type>192350000</msdyn_type>
+      <statecode>0</statecode>
+      <statuscode>1</statuscode>
+    </msdyn_channelmessagepart>
+    <msdyn_channelmessagepart msdyn_channelmessagepartid="d2e13689-b87a-4dfb-b8cc-3bfe2d5ad19c">
+      <iscustomizable>1</iscustomizable>
+      <msdyn_channeldefinitionid>
+        <msdyn_channeldefinitionid>b0d2cb5f-fc8a-4f71-88fd-3f494aee6df2</msdyn_channeldefinitionid>
+      </msdyn_channeldefinitionid>
+      <msdyn_description>Where the customer goes on tap: a web page or a screen in the app.</msdyn_description>
+      <msdyn_displayname>Tap action link</msdyn_displayname>
+      <msdyn_isrequired>0</msdyn_isrequired>
+      <msdyn_maxlength>1000</msdyn_maxlength>
+      <msdyn_name>actionUrl</msdyn_name>
+      <msdyn_order>40</msdyn_order>
+      <msdyn_type>192350000</msdyn_type>
+      <statecode>0</statecode>
+      <statuscode>1</statuscode>
+    </msdyn_channelmessagepart>
+  </msdyn_channelmessageparts>
+  <Languages>
+    <Language>1033</Language>
+    <Language>1037</Language>
+  </Languages>
+</ImportExportXml>

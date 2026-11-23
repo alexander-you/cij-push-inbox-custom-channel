@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<EntityRelationships xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <EntityRelationship Name="business_unit_alex_pushchannelinstance" />
+  <EntityRelationship Name="lk_alex_pushchannelinstance_createdby" />
+  <EntityRelationship Name="lk_alex_pushchannelinstance_modifiedby" />
+  <EntityRelationship Name="msdyn_ChannelInstance_extendedentityid_alex_pushchannelinstance" />
+  <EntityRelationship Name="owner_alex_pushchannelinstance" />
+  <EntityRelationship Name="team_alex_pushchannelinstance" />
+  <EntityRelationship Name="user_alex_pushchannelinstance" />
+</EntityRelationships>

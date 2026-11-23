@@ -1,0 +1,15 @@
+<environmentvariabledefinition schemaname="alex_ChannelApiBaseUrl">
+  <description default="Web address of the Azure push and inbox service for this environment, for example https://contoso-push.azurewebsites.net. Set it once when the solution is installed.">
+    <label description="Web address of the Azure push and inbox service for this environment, for example https://contoso-push.azurewebsites.net. Set it once when the solution is installed." languagecode="1033" />
+    <label description="כתובת האינטרנט של שירות הפוש ותיבת ההודעות ב-Azure עבור סביבה זו, לדוגמה https://contoso-push.azurewebsites.net. יש להגדיר אותה פעם אחת בעת התקנת הפתרון." languagecode="1037" />
+  </description>
+  <displayname default="Push channel service address">
+    <label description="Push channel service address" languagecode="1033" />
+    <label description="כתובת שירות ערוץ הפוש" languagecode="1037" />
+  </displayname>
+  <introducedversion>1.0.0.0</introducedversion>
+  <iscustomizable>1</iscustomizable>
+  <isrequired>0</isrequired>
+  <secretstore>0</secretstore>
+  <type>100000000</type>
+</environmentvariabledefinition>
