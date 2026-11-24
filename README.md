@@ -3,8 +3,8 @@
 Customer Insights - Journeys (CIJ) can send push notifications, but its native push channel has no persistent in-app inbox. This solution adds a CIJ **custom channel**, *Push + Inbox*. One journey tile sends a push alert, an inbox message that stays in the app's message center until it expires, or both. The backend is Azure: Functions, Service Bus, Cosmos DB and Notification Hubs.
 
 - **Delivery modes:** *Alert + Inbox*, *Inbox only* or *Alert only*, chosen per message.
-- **Reporting:** delivery status flows back to CIJ analytics, and inbox *opened* and *clicked* events can drive journey branches.
-- **Platforms:** web (PWA), Android (FCM) and iOS (APNs), through Azure Notification Hubs.
+- **Reporting:** delivery status (`Delivered` / `NotDelivered`) is reported back to CIJ. *Delivered* means the inbox item was stored or Notification Hubs accepted the push, not that a device displayed it. Inbox *opened* and *clicked* events aren't reported to CIJ yet; they are planned as custom triggers ([roadmap](#roadmap)).
+- **Platforms:** web push (PWA) today, through Azure Notification Hubs. Android (FCM) and iOS (APNs) device registration is planned.
 - **Languages:** full English and Hebrew, including right-to-left.
 - **Installation:** a single Dataverse solution plus a post-import script, and an `azd` template for Azure.
 
@@ -14,7 +14,7 @@ flowchart LR
   D --> I[(Cosmos DB inbox)]
   D --> N[Notification Hubs] --> A[App / PWA]
   D -->|status| J
-  A -->|opened, clicked| J
+  A -.->|opened, clicked: planned| J
 ```
 
 ## Status
