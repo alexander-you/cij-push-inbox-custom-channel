@@ -9,6 +9,7 @@ button { padding: 8px 14px; margin-block: 6px; cursor: pointer; }
 #items { list-style: none; padding: 0; }
 #items li { border: 1px solid #d1d1d1; border-radius: 8px; padding: 12px; margin-block: 10px; }
 #items li.unread { border-inline-start: 4px solid #0f6cbd; }
+#items li.focus { outline: 2px solid #0f6cbd; background: #f0f6ff; }
 #items h3 { margin: 0 0 6px; }
 #items img { max-width: 100%; border-radius: 6px; }
 #items .meta { color: #666; font-size: 0.8em; }

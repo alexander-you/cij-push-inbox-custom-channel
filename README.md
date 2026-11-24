@@ -3,7 +3,7 @@
 Customer Insights - Journeys (CIJ) can send push notifications, but its native push channel has no persistent in-app inbox. This solution adds a CIJ **custom channel**, *Push + Inbox*. One journey tile sends a push alert, an inbox message that stays in the app's message center until it expires, or both. The backend is Azure: Functions, Service Bus, Cosmos DB and Notification Hubs.
 
 - **Delivery modes:** *Alert + Inbox*, *Inbox only* or *Alert only*, chosen per message.
-- **Reporting:** delivery status (`Delivered` / `NotDelivered`) is reported back to CIJ. *Delivered* means the inbox item was stored or Notification Hubs accepted the push, not that a device displayed it. Inbox *opened* and *clicked* events aren't reported to CIJ yet; they are planned as custom triggers ([roadmap](#roadmap)).
+- **Reporting:** delivery status (`Delivered` / `NotDelivered`) is reported back to CIJ. *Delivered* means the inbox item was stored or Notification Hubs accepted the push, not that a device displayed it. **Clicks** are counted by CIJ link tracking: a tap on the notification opens the tracked action link, so it appears under *Unique clicks / Total clicks* and can drive an *If/then* "Link Clicked" branch ([how to report clicks](docs/developer-integration.md#3-how-to-report-clicks)). Inbox *opened* events aren't reported to CIJ.
 - **Platforms:** web push (PWA) today, through Azure Notification Hubs. Android (FCM) and iOS (APNs) device registration is planned.
 - **Languages:** full English and Hebrew, including right-to-left.
 - **Installation:** a single Dataverse solution plus a post-import script, and an `azd` template for Azure.
@@ -14,7 +14,7 @@ flowchart LR
   D --> I[(Cosmos DB inbox)]
   D --> N[Notification Hubs] --> A[App / PWA]
   D -->|status| J
-  A -.->|opened, clicked: planned| J
+  A -->|tap: CIJ tracked link| J
 ```
 
 ## Status
@@ -60,7 +60,7 @@ tests/solution/                  Solution structure and label check
 1. **Done (preview):** Azure core and Web Push. Channel API with idempotency, Service Bus, Dispatcher, Cosmos DB inbox, Notification Hubs, delivery reports to CIJ, reference PWA, `azd up`.
 2. **Required – Dataverse message log:** one row per message and status change in an elastic table, for audit and reporting. The schema is in [data-model.md](docs/data-model.md#planned-message-log-elastic-table). Where it appears in the UI is not decided yet.
 3. **Security:** authenticated Inbox API (end-user identity instead of `recipientKey` in the query string), Power Platform managed identity for the plug-in instead of the function key, solution security roles.
-4. **Interactions:** inbox opened and clicked events as CIJ custom triggers; `replaceKey`.
+4. **Interactions:** clicks are done through CIJ link tracking. Still open: an *opened* custom trigger if journeys must branch on app opens; `replaceKey`.
 5. **Images:** pick the image from the CIJ asset library instead of typing a URL.
 6. **Mobile apps:** Android (FCM v1) and iOS (APNs) device registration in the Inbox API; [developer integration guide](docs/developer-integration.md).
 7. **Release:** managed solution, sample journey, retry and dead-letter alerting, delete by recipient.

@@ -94,7 +94,7 @@ Each part has its own lowercase GUID, `msdyn_channeldefinitionid` set to the def
 | `title` | plaintext `192350000` | Yes | 65 | 70 | Push title and inbox subject. |
 | `body` | plaintext `192350000` | Yes | 1000 | 60 | Clients truncate the alert body. The inbox shows it in full. |
 | `imageId` | image `192350004` | No | – | 50 | The marketer picks an image from the CIJ asset library. The part holds the `msdyncrm_file` ID ([Message parts](https://learn.microsoft.com/dynamics365/customer-insights/journeys/real-time-marketing-custom-channel-message-parts)). The outbound plug-in resolves it to the asset's public URL; see [Image resolution](#image-resolution). |
-| `actionUrl` | plaintext `192350000` | No | 1000 | 40 | Deep link or URL. CIJ shortens links in custom channel messages, and they expire after 6 months ([Create custom channels](https://learn.microsoft.com/dynamics365/customer-insights/journeys/real-time-marketing-create-custom-channels)).  |
+| `actionUrl` | plaintext `192350000` | No | 1000 | 40 | Deep link or URL. CIJ replaces `https://` URLs with tracked short links (verified), so a tap counts as a click; they expire after 6 months ([Create custom channels](https://learn.microsoft.com/dynamics365/customer-insights/journeys/real-time-marketing-create-custom-channels)).  |
 | `deliveryMode` | options `192350008` | Yes | – | 30 | `msdyn_options`: `[{"label":"Alert + Inbox","value":1},{"label":"Inbox only","value":2},{"label":"Alert only","value":3}]` ([Message parts](https://learn.microsoft.com/dynamics365/customer-insights/journeys/real-time-marketing-custom-channel-message-parts)). |
 | `inboxExpiryDays` | number `192350006` | No | – | 20 | Capped at 180 by the Channel API. The default comes from channel instance config. |
 | `replaceKey` | plaintext `192350000` | No | 100 | 10 | The same key replaces the recipient's earlier inbox item. |
@@ -318,7 +318,7 @@ tests/solution/
 | Container | Partition key | `id` | TTL | Purpose |
 |---|---|---|---|---|
 | `inboxItems` | `/recipientKey` | `replaceKey ? hash(appKey + replaceKey) : messageId` | Container `defaultTtl = -1`, so items don't expire unless they set `ttl`. Each item sets `ttl = expiryDays × 86400` ([Cosmos DB time to live](https://learn.microsoft.com/azure/cosmos-db/how-to-time-to-live)). | The recipient's inbox. All reads are single-partition ([Cosmos DB partitioning](https://learn.microsoft.com/azure/cosmos-db/partitioning-overview)). Using a deterministic `id` makes "replace" a plain upsert. |
-| `dispatches` | `/idempotencyId` | `idempotencyId` | 30 days | Idempotency: a create conflict means the request is a duplicate, so the API returns the stored result. Also maps `requestId` and `messageId` for the delivery report. This replaces the sample's `cr65f_requestmessagemapping` Dataverse table ([Microsoft sample solution](https://download.microsoft.com/download/44685e3a-8b09-4caa-be78-12bc6867c8d1/SampleCustomChannel.zip)), so there are no per-message Dataverse writes ([Dataverse API limits](https://learn.microsoft.com/power-apps/developer/data-platform/api-limits)). |
+| `dispatches` | `/idempotencyId` | `idempotencyId` | 30 days | Idempotency: a create conflict means the request is a duplicate, so the API returns the stored result. If the record is still `Pending` (the enqueue failed), a CIJ retry re-enqueues it instead. The Dispatcher records each step (`storedOn`, `pushedOn` + `pushedCount`, `reportedOn` or `reportError`), so a Service Bus redelivery skips the push that already happened and only retries the delivery report. Also maps `requestId` and `messageId` for the delivery report. This replaces the sample's `cr65f_requestmessagemapping` Dataverse table ([Microsoft sample solution](https://download.microsoft.com/download/44685e3a-8b09-4caa-be78-12bc6867c8d1/SampleCustomChannel.zip)), so there are no per-message Dataverse writes ([Dataverse API limits](https://learn.microsoft.com/power-apps/developer/data-platform/api-limits)). |
 | `identities` | `/subject` | `subject` | None | Maps the app user's identity (`iss` + `sub` from the app's IdP token) to `recipientKey`. Filled at device registration (section 6). |
 
 `inboxItems` schema:
@@ -501,7 +501,7 @@ All writes come from the Azure backend through its managed-identity application 
 | Dispatched | Dispatcher | After the inbox write and the Notification Hubs send; includes the push counts | — |
 | Delivery reported | Dispatcher | After `alex_PushDeliveryReport` succeeds, or is skipped because `RequestId` is empty (test send, noted in `alex_detail`) | Delivered / Not delivered |
 | Opened | Inbox API | Planned: when the app reports an open. The open endpoint is not implemented yet. | — |
-| Clicked | Inbox API | Planned: when the app reports an action click. Not implemented yet. | — |
+| Clicked | — | Not logged here: CIJ link tracking records clicks itself ([developer-integration](developer-integration.md#3-how-to-report-clicks)). | — |
 
 **Required to build it:**
 - Add a solution security role with create, write and read on `alex_pushmessagelog`, and assign it to the backend's application user (today it has Basic User only).

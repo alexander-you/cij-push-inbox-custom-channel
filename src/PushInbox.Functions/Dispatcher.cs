@@ -14,6 +14,9 @@ public sealed class Store(CosmosClient client, string database)
 /// <summary>
 /// Service Bus "dispatch" queue trigger: writes the inbox item, sends the Web Push through Notification Hubs,
 /// and reports Delivered / NotDelivered back to CIJ when the send has a RequestId.
+/// Each finished step is recorded on the dispatch record (storedOn, pushedOn, reportedOn). A Service Bus redelivery,
+/// or a second enqueue of the same IdempotencyId, repeats only the unfinished steps, so a failed delivery report
+/// is retried without pushing again.
 /// </summary>
 public sealed class Dispatcher(Store store, NotificationHubRest hub, DataverseClient dataverse, ILogger<Dispatcher> log)
 {
@@ -21,12 +24,10 @@ public sealed class Dispatcher(Store store, NotificationHubRest hub, DataverseCl
     public async Task Run([ServiceBusTrigger("%DISPATCH_QUEUE%", Connection = "ServiceBus")] string body, CancellationToken ct)
     {
         var message = JsonConvert.DeserializeObject<DispatchMessage>(body)!;
+        var record = (await store.Dispatches.ReadItemAsync<DispatchRecord>(message.IdempotencyId, new PartitionKey(message.IdempotencyId), cancellationToken: ct)).Resource;
         var dir = Keys.Direction(message.Title, message.Body);
-        var stored = false;
-        string? reason = null, detail = null;
-        var pushed = 0;
 
-        if (message.Mode != DeliveryMode.AlertOnly)
+        if (message.Mode != DeliveryMode.AlertOnly && record.StoredOn == null)
         {
             var now = DateTimeOffset.UtcNow;
             var item = new InboxItem
@@ -49,11 +50,16 @@ public sealed class Dispatcher(Store store, NotificationHubRest hub, DataverseCl
                 Ttl = message.ExpiryDays * 86400,
             };
             await store.Inbox.UpsertItemAsync(item, new PartitionKey(item.RecipientKey), cancellationToken: ct);
-            stored = true;
             log.LogInformation("Inbox item {ItemId} stored for recipient {RecipientLogId}, ttl {Ttl}s", item.Id, Keys.LogId(item.RecipientKey), item.Ttl);
+            record.StoredOn = now;
+            await PatchAsync(message, ct, PatchOperation.Set("/storedOn", now));
+        }
+        else if (record.StoredOn != null)
+        {
+            log.LogInformation("Inbox step already done for {MessageId}; skipping", message.MessageId);
         }
 
-        if (message.Mode != DeliveryMode.InboxOnly)
+        if (message.Mode != DeliveryMode.InboxOnly && record.PushedOn == null)
         {
             var payload = JsonConvert.SerializeObject(new
             {
@@ -71,10 +77,13 @@ public sealed class Dispatcher(Store store, NotificationHubRest hub, DataverseCl
             log.LogInformation("Notification Hubs send {Status} test {Test} success {Success} failure {Failure} results [{Results}] id {NotificationId}",
                 outcome.HttpStatus, message.IsTestSend, outcome.Success, outcome.Failure, string.Join(",", outcome.Results), outcome.NotificationId);
 
+            var pushed = 0;
+            string? reason = null, detail = null;
             if (outcome.HttpStatus is < 200 or >= 300)
             {
                 reason = "PushServiceError";
                 detail = $"Notification Hubs returned {outcome.HttpStatus}: {Truncate(outcome.Raw, 300)}";
+                // Transient: nothing was pushed, so let Service Bus redeliver and try the push again.
                 if (outcome.HttpStatus >= 500 || outcome.HttpStatus == 429) throw new InvalidOperationException(detail);
             }
             else if (message.IsTestSend)
@@ -87,37 +96,83 @@ public sealed class Dispatcher(Store store, NotificationHubRest hub, DataverseCl
                 // Standard sends: Notification Hubs accepted the request; per-device results need the Standard tier.
                 pushed = 1;
             }
+
+            // Recorded straight after the send so that nothing that fails later (status update, delivery report) causes a second push.
+            var pushedOn = DateTimeOffset.UtcNow;
+            (record.PushedOn, record.PushedCount, record.FailureReason, record.StatusDetail) = (pushedOn, pushed, reason, detail);
+            await PatchAsync(message, ct,
+                PatchOperation.Set("/pushedOn", pushedOn),
+                PatchOperation.Set("/pushedCount", pushed),
+                PatchOperation.Set("/failureReason", reason),
+                PatchOperation.Set("/statusDetail", detail));
+        }
+        else if (record.PushedOn != null)
+        {
+            log.LogInformation("Push step already done for {MessageId} on {PushedOn}; not pushing again", message.MessageId, record.PushedOn);
         }
 
-        var delivered = stored || pushed > 0;
-        await UpdateDispatchAsync(message, delivered ? "Delivered" : "NotDelivered", detail, ct);
-        await ReportAsync(message, delivered, reason, detail, ct);
-    }
+        var delivered = record.StoredOn != null || record.PushedCount > 0;
+        await PatchAsync(message, ct,
+            PatchOperation.Set("/status", delivered ? "Delivered" : "NotDelivered"),
+            PatchOperation.Set("/updatedOn", DateTimeOffset.UtcNow));
 
-    private async Task UpdateDispatchAsync(DispatchMessage message, string status, string? detail, CancellationToken ct)
-    {
-        await store.Dispatches.PatchItemAsync<DispatchRecord>(message.IdempotencyId, new PartitionKey(message.IdempotencyId), new[]
+        if (record.ReportedOn != null)
         {
-            PatchOperation.Set("/status", status),
-            PatchOperation.Set("/statusDetail", detail),
-            PatchOperation.Set("/updatedOn", DateTimeOffset.UtcNow),
-        }, cancellationToken: ct);
+            log.LogInformation("Delivery report already sent for {MessageId}", message.MessageId);
+            return;
+        }
+        try
+        {
+            if (await ReportAsync(message, delivered, record.FailureReason, record.StatusDetail, ct))
+            {
+                await PatchAsync(message, ct, PatchOperation.Set("/reportedOn", DateTimeOffset.UtcNow), PatchOperation.Set("/reportError", (string?)null));
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // The push and inbox steps are recorded, so the Service Bus redelivery only retries this report.
+            // After maxDeliveryCount the message moves to the dead-letter queue with the error below.
+            log.LogWarning(ex, "Delivery report failed for {MessageId} request {RequestId}; Service Bus will retry the report only", message.MessageId, message.RequestId);
+            await PatchAsync(message, ct, PatchOperation.Set("/reportError", Truncate(ex.Message, 300)));
+            throw;
+        }
     }
 
-    private async Task ReportAsync(DispatchMessage message, bool delivered, string? reason, string? detail, CancellationToken ct)
+    private const int ReportAttempts = 3;
+
+    private Task PatchAsync(DispatchMessage message, CancellationToken ct, params PatchOperation[] operations) =>
+        store.Dispatches.PatchItemAsync<DispatchRecord>(message.IdempotencyId, new PartitionKey(message.IdempotencyId), operations, cancellationToken: ct);
+
+    /// <summary>Returns true when a report was sent; false when there is nothing to report (test send or no Dataverse URL).</summary>
+    private async Task<bool> ReportAsync(DispatchMessage message, bool delivered, string? reason, string? detail, CancellationToken ct)
     {
         if (string.IsNullOrEmpty(message.RequestId))
         {
             log.LogInformation("Delivery report skipped for {MessageId}: the CIJ request has no RequestId (test send).", message.MessageId);
-            return;
+            return false;
         }
         if (!dataverse.IsConfigured)
         {
             log.LogWarning("Delivery report skipped for {MessageId}: DATAVERSE_URL is not set.", message.MessageId);
-            return;
+            return false;
         }
-        var result = await dataverse.SendDeliveryReportAsync(message, delivered, reason, detail, ct);
+        // Service Bus redelivers a failed message almost immediately, so back off in-process before giving up on this delivery.
+        string result;
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                result = await dataverse.SendDeliveryReportAsync(message, delivered, reason, detail, ct);
+                break;
+            }
+            catch (Exception ex) when (attempt < ReportAttempts && ex is not OperationCanceledException)
+            {
+                log.LogWarning("Delivery report attempt {Attempt} failed for {MessageId}: {Error}", attempt, message.MessageId, Truncate(ex.Message, 200));
+                await Task.Delay(TimeSpan.FromSeconds(2 * attempt * attempt), ct);
+            }
+        }
         log.LogInformation("Delivery report {Status} sent for request {RequestId}: {Result}", delivered ? "Delivered" : "NotDelivered", message.RequestId, Truncate(result, 300));
+        return true;
     }
 
     private static string Truncate(string? text, int max) => text == null || text.Length <= max ? text ?? "" : text[..max];

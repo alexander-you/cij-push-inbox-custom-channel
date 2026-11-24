@@ -20,8 +20,13 @@ self.addEventListener('push', (event) => {
   ]));
 });
 
+// A tap opens the action URL. When that URL is a CIJ tracked link to this app, CIJ counts the click and redirects here
+// with ?msdynmkt_trackingcontext=<RequestId>, which the app uses to open that message. Without a URL, the app opens
+// directly and #m=<messageId> identifies the message.
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = (event.notification.data && event.notification.data.url) || self.registration.scope;
+  const data = event.notification.data || {};
+  let url = data.url;
+  if (!url) url = self.registration.scope + (data.messageId ? '#m=' + encodeURIComponent(data.messageId) : '');
   event.waitUntil(self.clients.openWindow(url));
 });

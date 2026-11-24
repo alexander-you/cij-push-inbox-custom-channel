@@ -4,7 +4,7 @@ For developers of the customer's own web, Android or iOS app. To receive Push + 
 
 1. Gets a push token from the browser or OS push service and **registers the device** with the backend, together with the recipient key and the app key.
 2. **Reads the inbox** and marks items as read or deletes them, through the Inbox API.
-3. **Reports opens and clicks.** This is planned; see [step 3](#3-report-opens-and-clicks-planned).
+3. **Opens the tracked action link on tap**, so CIJ counts the click; see [step 3](#3-how-to-report-clicks).
 
 **Reference implementation:** the PWA in [`src/web`](../src/web) (`app.js` and `sw.js`). Everything in this guide for the web is taken from that code, which has been tested end to end in Microsoft Edge. Android and iOS are **not implemented** in the backend yet; those sections show what is needed, based on the platform vendors' public docs, and are labelled accordingly.
 
@@ -65,7 +65,7 @@ await fetch(`${apiBaseUrl}/devices`, {
 |---|---|
 | `title`, `body` | Message text |
 | `image` | Image URL, optional |
-| `url` | Action URL, optional |
+| `url` | Action URL, optional. A CIJ tracked link when the message has one ([section 3](#3-how-to-report-clicks)). |
 | `messageId` | Message ID; used as the notification `tag` |
 | `dir`, `lang` | `rtl`/`he` when the text contains Hebrew or Arabic, otherwise `ltr`/`en` |
 
@@ -120,7 +120,7 @@ All routes take `appKey` and `recipientKey` as query parameters in the test harn
 | `DELETE /inbox/{id}?appKey=…&recipientKey=…` | `204`. `404` as above. |
 
 **Item fields:**
-- `id`, `messageId`
+- `id`, `messageId`, `requestId` (the CIJ RequestId; matches `msdynmkt_trackingcontext`)
 - `title`, `body`
 - `imageUrl`, `actionUrl` (optional). `imageUrl` is the public CDN URL of a CIJ asset-library image; it needs no authentication and allows cross-origin loading.
 - `dir`
@@ -131,14 +131,59 @@ All routes take `appKey` and `recipientKey` as query parameters in the test harn
 
 **Refresh:** refresh the list when a push arrives. The reference service worker posts `{ type: 'inbox-changed' }` to open windows, and `app.js` reloads on that message. Also refresh on app start, because **Inbox only** messages send no push.
 
-## 3. Report opens and clicks (planned)
+## 3. How to report clicks
 
-**Not implemented.** There is no open or click endpoint yet, and nothing is reported back to CIJ as an interaction. Marking an item as read (`POST /inbox/{id}/read`) is stored only in the inbox.
+Clicks are counted by **CIJ link tracking**. Your app reports nothing itself: it only opens the tracked link that CIJ put in the message.
 
-The planned design:
-- Add Inbox API endpoints for "opened" and "action clicked".
-- Write them to the planned Dataverse message log ([data-model.md](data-model.md#planned-message-log-elastic-table)).
-- Forward them to CIJ as interactions. **Unverified** which CIJ custom-channel mechanism applies; to be confirmed against Microsoft Learn before implementation.
+### How it works (verified end to end with the PWA, EN environment, 24 Nov 2026)
+
+1. CIJ rewrites `https://` links in custom-channel message parts into short tracked links, for example `https://eur.tx.ms/…`. This applies to both the **Tap action link** (`actionUrl`) and links in the **body**. Links without a scheme, such as `www.example.com`, are **not** rewritten, and so aren't tracked. Tracking depends on the contact's tracking consent ([Link tracking mechanics](https://learn.microsoft.com/dynamics365/customer-insights/journeys/real-time-marketing-link-tracking-mechanics), [Troubleshoot link tracking](https://learn.microsoft.com/troubleshoot/dynamics-365/customer-insights/journeys/tracking/troubleshoot-link-tracking)).
+2. The tracked link returns an HTML page (HTTP 200) that runs CIJ bot detection and then redirects to the target URL. It is **not** an HTTP 3xx redirect, so a URL fragment (`#…`) added to the tracked link is lost. The target URL gets `?msdynmkt_trackingcontext=<RequestId>` appended (observed, not documented).
+3. CIJ records a click with its **Target URL** and **Link context**, and shows it under *Unique clicks / Total clicks* in the tile's *Delivery and interaction details*. Clicks appear after a delay of tens of minutes.
+
+**Recommended pattern: a tap opens the app, and external links go in the body.**
+- Set the **Tap action link** to your app's own URL (the PWA URL, or an Android App Link / iOS Universal Link). A tap counts as a CIJ click and lands in the app.
+- Use `msdynmkt_trackingcontext` to open the message that was tapped: it equals the inbox item's `requestId`.
+- Put external links in the body as full `https://` URLs. They're tracked too, and appear as separate click rows with their own Target URL.
+
+**Branching.** After a custom-channel message, the *If/then: previous message gets an interaction* tile offers exactly **Custom Channel Message Delivered**, **Custom Channel Message Link Clicked** and **Custom Channel Message Bounced** (verified in the journey designer). There is no per-link selection: a tap and a body-link click are both *Link Clicked*. The per-link distinction exists only in analytics (Target URL). Which delivery report status, if any, produces *Bounced* is **unverified**. If you need to branch on "opened the app" specifically, raise a custom trigger from your backend instead ([Custom triggers](https://learn.microsoft.com/dynamics365/customer-insights/journeys/real-time-marketing-custom-triggers), [Wait for trigger](https://learn.microsoft.com/dynamics365/customer-insights/journeys/add-action)); this is not implemented.
+
+### Web / PWA (implemented, `src/web/sw.js` and `app.js`)
+
+```js
+// sw.js: the push payload's `url` is the tracked actionUrl.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const data = event.notification.data || {};
+  // No action URL: open the app directly; the fragment survives because there is no redirect.
+  const url = data.url || self.registration.scope + '#m=' + encodeURIComponent(data.messageId);
+  event.waitUntil(self.clients.openWindow(url));
+});
+
+// app.js: after loading the inbox, open the tapped message.
+const requestId = new URLSearchParams(location.search).get('msdynmkt_trackingcontext');
+const item = items.find((i) => i.requestId === requestId);   // or i.id === #m
+// highlight it, then POST /inbox/{id}/read
+```
+
+- In the inbox, render body links as `<a>` elements so they're clickable. The reference app's `linkify` matches only `https://` URLs and builds DOM nodes, never HTML strings.
+- **Without an action URL**, a tap opens the app and **no click is counted** in CIJ.
+- Sources: [notificationclick](https://developer.mozilla.org/docs/Web/API/ServiceWorkerGlobalScope/notificationclick_event), [Clients.openWindow](https://developer.mozilla.org/docs/Web/API/Clients/openWindow).
+
+### Android (not implemented, untested)
+
+- Put `url` in the FCM message's **data** payload.
+- If the app handles the message in `FirebaseMessagingService.onMessageReceived`, build the notification with a `contentIntent` (PendingIntent) that opens the tracked `url` with `Intent.ACTION_VIEW` ([Set the tap action](https://developer.android.com/develop/ui/views/notifications/build-notification)).
+- For *notification* messages received while the app is in the background, Android shows the notification itself. A tap launches the launcher activity with the data payload in the intent extras; read `url` there and open it ([Receive messages](https://firebase.google.com/docs/cloud-messaging/android/receive-messages)).
+- To land in the app, make the action URL an Android App Link to your app ([App Links](https://developer.android.com/training/app-links)).
+- **Unverified:** whether the browser opens the app when CIJ's tracking page redirects to an App Link from JavaScript. Test this before you rely on it.
+
+### iOS (not implemented, untested)
+
+- Put `url` in the APNs payload as a custom key.
+- In `userNotificationCenter(_:didReceive:withCompletionHandler:)`, read it from `response.notification.request.content.userInfo` and open it ([UNUserNotificationCenterDelegate](https://developer.apple.com/documentation/usernotifications/unusernotificationcenterdelegate/usernotificationcenter(_:didreceive:withcompletionhandler:))).
+- To land in the app, use a Universal Link ([Supporting universal links](https://developer.apple.com/documentation/xcode/supporting-universal-links-in-your-app)).
+- **Unverified:** the same redirect caveat as Android. Opening the tracked link in an in-app browser and then routing internally is an alternative.
 
 ## What must change for production
 
@@ -153,5 +198,5 @@ In priority order. Details and sources are in [security considerations](security
 4. **Plug-in to Azure authentication.** Replace the function key with a managed identity / Entra ID token ([SEC-04](security.md#sec-04-authentication-from-dataverse-to-azure)).
 5. **Rate limiting and a gateway.** Put Azure API Management in front of the APIs, with per-key rate limits ([rate-limit-by-key](https://learn.microsoft.com/azure/api-management/rate-limit-by-key-policy), [SEC-16](security.md#sec-16-idempotency-replay-abuse-and-rate-limiting)).
 6. **Keyed tag hashing.** Move from a plain SHA-256 to a keyed hash (HMAC) for recipient tags, and remove the transitional plain-tag match in the Dispatcher ([SEC-12](security.md#sec-12-personal-data-in-notification-hubs-tags)).
-7. **Opens and clicks** (section 3), if you need engagement reporting in CIJ.
+7. **Clicks on native apps** (section 3), and a custom trigger if you need to branch on app opens specifically.
 8. **Production tiers** ([production sizing](production-sizing.md)).

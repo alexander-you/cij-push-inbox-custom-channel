@@ -19,6 +19,8 @@ const T = {
 const qs = new URLSearchParams(location.search);
 const api = (qs.get('api') || (window.PUSH_INBOX_CONFIG || {}).apiBaseUrl || '').replace(/\/$/, '');
 const $ = (id) => document.getElementById(id);
+// The message opened from a notification tap stays highlighted across re-renders.
+let focusedId = null;
 let lang = localStorage.getItem('lang') || (navigator.language.startsWith('he') ? 'he' : 'en');
 
 function applyLang() {
@@ -85,7 +87,7 @@ async function load() {
     li.dir = item.dir || 'auto';
     if (!item.readOn) li.className = 'unread';
     const h = document.createElement('h3'); h.textContent = item.title; li.append(h);
-    const p = document.createElement('p'); p.textContent = item.body; li.append(p);
+    const p = document.createElement('p'); p.append(...linkify(item.body || '')); li.append(p);
     if (item.imageUrl) { const img = document.createElement('img'); img.src = item.imageUrl; img.alt = ''; li.append(img); }
     const meta = document.createElement('div'); meta.className = 'meta';
     meta.textContent = `${new Date(item.createdOn).toLocaleString(lang)} · ${T[lang].expires} ${new Date(item.expiresOn).toLocaleDateString(lang)}`;
@@ -97,8 +99,33 @@ async function load() {
     del.onclick = async (e) => { e.stopPropagation(); await fetch(`${api}/inbox/${encodeURIComponent(item.id)}?${q}`, { method: 'DELETE' }); load(); };
     li.append(del);
     li.onclick = async () => { if (!item.readOn) { await fetch(`${api}/inbox/${encodeURIComponent(item.id)}/read?${q}`, { method: 'POST' }); load(); } };
+    li.dataset.id = item.id;
     list.append(li);
   }
+  const hashId = new URLSearchParams(location.hash.slice(1)).get('m');
+  const requestId = qs.get('msdynmkt_trackingcontext');
+  const target = data.items.find((i) => (hashId && i.id === hashId) || (requestId && i.requestId === requestId));
+  if (target) {
+    focusedId = target.id;
+    qs.delete('msdynmkt_trackingcontext');
+    history.replaceState(null, '', location.pathname + (qs.toString() ? '?' + qs : ''));
+  }
+  const focused = focusedId && [...list.children].find((li) => li.dataset.id === focusedId);
+  if (focused) {
+    focused.classList.add('focus');
+    if (target) focused.scrollIntoView({ block: 'center' });
+    if (focused.classList.contains('unread')) focused.click();
+  }
+}
+
+// Body links (CIJ tracked links) become clickable; everything else stays plain text.
+function linkify(text) {
+  return text.split(/(https:\/\/[^\s<>"']+)/).map((part, i) => {
+    if (i % 2 === 0) return document.createTextNode(part);
+    const a = document.createElement('a'); a.href = part; a.target = '_blank'; a.rel = 'noopener'; a.textContent = part;
+    a.onclick = (e) => e.stopPropagation();
+    return a;
+  });
 }
 
 $('appKey').value = qs.get('appKey') || localStorage.getItem('appKey') || '';
@@ -109,3 +136,4 @@ $('refresh').onclick = () => load();
 if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', (e) => { if (e.data && e.data.type === 'inbox-changed') load(); });
 applyLang();
 load();
+if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistration().then((r) => r && r.update());

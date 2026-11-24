@@ -39,10 +39,24 @@ public sealed class DispatchRecord
     [JsonProperty("recipientKey")] public string RecipientKey { get; set; } = "";
     [JsonProperty("appKey")] public string AppKey { get; set; } = "";
     [JsonProperty("isTestSend")] public bool IsTestSend { get; set; }
-    [JsonProperty("status")] public string Status { get; set; } = "Accepted";
+    /// <summary>Pending (created, enqueue not confirmed), Enqueued, then Delivered / NotDelivered. Older records may say Accepted.</summary>
+    [JsonProperty("status")] public string Status { get; set; } = DispatchStatus.Pending;
     [JsonProperty("statusDetail")] public string? StatusDetail { get; set; }
+    // Step markers written by the Dispatcher so a Service Bus redelivery repeats only the steps that didn't finish.
+    [JsonProperty("storedOn")] public DateTimeOffset? StoredOn { get; set; }
+    [JsonProperty("pushedOn")] public DateTimeOffset? PushedOn { get; set; }
+    [JsonProperty("pushedCount")] public int PushedCount { get; set; }
+    [JsonProperty("failureReason")] public string? FailureReason { get; set; }
+    [JsonProperty("reportedOn")] public DateTimeOffset? ReportedOn { get; set; }
+    [JsonProperty("reportError")] public string? ReportError { get; set; }
     [JsonProperty("createdOn")] public DateTimeOffset CreatedOn { get; set; }
     [JsonProperty("updatedOn")] public DateTimeOffset? UpdatedOn { get; set; }
+}
+
+public static class DispatchStatus
+{
+    public const string Pending = "Pending";
+    public const string Enqueued = "Enqueued";
 }
 
 /// <summary>Cosmos container "inboxItems" (partition key /recipientKey).</summary>

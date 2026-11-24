@@ -12,7 +12,8 @@ namespace PushInbox.Functions;
 
 /// <summary>
 /// POST /api/messages - called by the alex_PushOutbound plug-in with the unchanged CIJ outbound payload.
-/// Validates, de-duplicates, enqueues and answers within the 20-second CIJ limit.
+/// Validates, de-duplicates on IdempotencyId, enqueues and answers within the 20-second CIJ limit.
+/// A retry whose earlier attempt never confirmed the enqueue (record still Pending) is enqueued again.
 /// </summary>
 public sealed class ChannelApi(Store store, ServiceBusSender sender, ILogger<ChannelApi> log)
 {
@@ -74,15 +75,24 @@ public sealed class ChannelApi(Store store, ServiceBusSender sender, ILogger<Cha
             CreatedOn = DateTimeOffset.UtcNow,
         };
 
+        var reEnqueue = false;
         try
         {
             await store.Dispatches.CreateItemAsync(record, new PartitionKey(idempotencyId), cancellationToken: ct);
         }
         catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.Conflict)
         {
-            var existing = await store.Dispatches.ReadItemAsync<DispatchRecord>(idempotencyId, new PartitionKey(idempotencyId), cancellationToken: ct);
-            log.LogInformation("Duplicate IdempotencyId {IdempotencyId}; returning MessageId {MessageId}", idempotencyId, existing.Resource.MessageId);
-            return new ObjectResult(new { messageId = existing.Resource.MessageId, duplicate = true }) { StatusCode = 202 };
+            var existing = (await store.Dispatches.ReadItemAsync<DispatchRecord>(idempotencyId, new PartitionKey(idempotencyId), cancellationToken: ct)).Resource;
+            if (existing.Status != DispatchStatus.Pending)
+            {
+                log.LogInformation("Duplicate IdempotencyId {IdempotencyId}; returning MessageId {MessageId}", idempotencyId, existing.MessageId);
+                return new ObjectResult(new { messageId = existing.MessageId, duplicate = true }) { StatusCode = 202 };
+            }
+            // The earlier attempt created the record but never confirmed the enqueue (for example Service Bus failed).
+            // Re-enqueue from this retry's payload under the original MessageId; the Dispatcher's step markers absorb a double enqueue.
+            log.LogWarning("IdempotencyId {IdempotencyId} is still Pending; re-enqueuing MessageId {MessageId}", idempotencyId, existing.MessageId);
+            record.MessageId = existing.MessageId;
+            reEnqueue = true;
         }
 
         var dispatch = new DispatchMessage
@@ -113,9 +123,30 @@ public sealed class ChannelApi(Store store, ServiceBusSender sender, ILogger<Cha
             ContentType = "application/json",
         }, ct);
 
-        log.LogInformation("Accepted {MessageId} for recipient {RecipientLogId} mode {Mode} test {IsTestSend} request {RequestId}",
-            dispatch.MessageId, Keys.LogId(recipientKey), mode, dispatch.IsTestSend, requestId);
+        await MarkEnqueuedAsync(idempotencyId, ct);
+
+        log.LogInformation("Accepted {MessageId} for recipient {RecipientLogId} mode {Mode} test {IsTestSend} request {RequestId} reEnqueue {ReEnqueue}",
+            dispatch.MessageId, Keys.LogId(recipientKey), mode, dispatch.IsTestSend, requestId, reEnqueue);
         return new ObjectResult(new { messageId = dispatch.MessageId }) { StatusCode = 202 };
+    }
+
+    /// <summary>Pending -> Enqueued, only if the Dispatcher hasn't already moved the record on. Best effort: the message is already queued.</summary>
+    private async Task MarkEnqueuedAsync(string idempotencyId, CancellationToken ct)
+    {
+        try
+        {
+            await store.Dispatches.PatchItemAsync<DispatchRecord>(idempotencyId, new PartitionKey(idempotencyId),
+                new[] { PatchOperation.Set("/status", DispatchStatus.Enqueued), PatchOperation.Set("/updatedOn", DateTimeOffset.UtcNow) },
+                new PatchItemRequestOptions { FilterPredicate = $"FROM c WHERE c.status = '{DispatchStatus.Pending}'" }, ct);
+        }
+        catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.PreconditionFailed)
+        {
+            // Already Delivered / NotDelivered.
+        }
+        catch (CosmosException ex)
+        {
+            log.LogWarning("Could not mark {IdempotencyId} Enqueued: {Status}. A CIJ retry would enqueue it again; the Dispatcher de-duplicates.", idempotencyId, ex.StatusCode);
+        }
     }
 
     // The option value arrives as a string ("1"), observed in a CIJ test send; labels are accepted defensively.
