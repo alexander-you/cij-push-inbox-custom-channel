@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Push Inbox</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="app.css">
+  <script src="config.js"></script>
+</head>
+<body>
+  <header>
+    <h1 data-t="title"></h1>
+    <button id="lang" type="button"></button>
+  </header>
+  <section id="setup">
+    <label><span data-t="appKey"></span><input id="appKey" autocomplete="off" dir="ltr"></label>
+    <label><span data-t="recipientKey"></span><input id="recipientKey" autocomplete="off" dir="ltr"></label>
+    <p class="hint" data-t="recipientHint"></p>
+    <button id="enable" type="button" data-t="enable"></button>
+    <p id="status" role="status"></p>
+  </section>
+  <section>
+    <h2><span data-t="inbox"></span> <span id="unread" class="badge"></span></h2>
+    <button id="refresh" type="button" data-t="refresh"></button>
+    <ul id="items"></ul>
+  </section>
+  <script src="app.js"></script>
+</body>
+</html>

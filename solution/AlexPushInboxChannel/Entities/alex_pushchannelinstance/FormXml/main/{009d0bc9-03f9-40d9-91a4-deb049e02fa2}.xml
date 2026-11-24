@@ -55,6 +55,16 @@
           </columns>
         </tab>
       </tabs>
+      <formLibraries>
+        <Library name="alex_/scripts/pushchannelinstance.js" libraryUniqueId="{6f2b0c51-7a3e-4c8e-9d1a-2b5e8f3c4d71}" />
+      </formLibraries>
+      <events>
+        <event name="onload" application="false" active="false">
+          <Handlers>
+            <Handler functionName="Alex.PushChannelInstance.onLoad" libraryName="alex_/scripts/pushchannelinstance.js" handlerUniqueId="{b3e1d2a4-58c6-4f0b-a7e9-1c2d3e4f5a62}" enabled="true" parameters="" passExecutionContext="true" />
+          </Handlers>
+        </event>
+      </events>
     </form>
     <IsCustomizable>1</IsCustomizable>
     <CanBeDeleted>1</CanBeDeleted>

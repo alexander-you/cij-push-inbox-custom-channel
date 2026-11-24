@@ -1,0 +1,14 @@
+body { font-family: "Segoe UI", system-ui, sans-serif; margin: 0 auto; max-width: 720px; padding: 16px; color: #1b1b1b; }
+header { display: flex; justify-content: space-between; align-items: center; }
+label { display: block; margin: 8px 0; }
+label span { display: block; font-weight: 600; margin-block-end: 4px; }
+input { width: 100%; padding: 8px; box-sizing: border-box; }
+button { padding: 8px 14px; margin-block: 6px; cursor: pointer; }
+.hint { color: #555; font-size: 0.9em; }
+.badge { background: #0f6cbd; color: #fff; border-radius: 10px; padding: 0 8px; font-size: 0.8em; }
+#items { list-style: none; padding: 0; }
+#items li { border: 1px solid #d1d1d1; border-radius: 8px; padding: 12px; margin-block: 10px; }
+#items li.unread { border-inline-start: 4px solid #0f6cbd; }
+#items h3 { margin: 0 0 6px; }
+#items img { max-width: 100%; border-radius: 6px; }
+#items .meta { color: #666; font-size: 0.8em; }

@@ -6,7 +6,7 @@ Customer Insights - Journeys (CIJ) can send push notifications, but its native p
 - **Reporting:** delivery status flows back to CIJ analytics, and inbox *opened* and *clicked* events can drive journey branches.
 - **Platforms:** web (PWA), Android (FCM) and iOS (APNs), through Azure Notification Hubs.
 - **Languages:** full English and Hebrew, including right-to-left.
-- **Installation:** a single Dataverse solution plus a post-import script, and an `azd` template for Azure (planned).
+- **Installation:** a single Dataverse solution plus a post-import script, and an `azd` template for Azure.
 
 ```mermaid
 flowchart LR
@@ -21,10 +21,10 @@ flowchart LR
 
 | Part | Status |
 |---|---|
-| Dataverse solution `AlexPushInboxChannel` 1.0.0.0: channel definition, 7 message parts, config table and form, custom APIs, plug-in, environment variable, English and Hebrew labels | Available |
-| Azure backend, reference PWA inbox, `azd` template | Planned |
-
-Until the backend is deployed, sends return `NotSent` (`ChannelApiNotConfigured`).
+| Dataverse solution `AlexPushInboxChannel` 1.0.0.0: channel definition, 7 message parts, config table and form, custom APIs, plug-ins, environment variable, English and Hebrew labels | Available |
+| Azure backend (`azd up`): Channel API with idempotency, Service Bus, Dispatcher, Cosmos DB inbox, Notification Hubs Web Push, delivery reports to CIJ | Available (preview) |
+| Reference PWA inbox (Static Web Apps) and Inbox API | Available as a **test harness**: the Inbox API is anonymous. See [known limitations](docs/known-limitations.md). |
+| End-user authentication, interaction triggers, Android/iOS device registration, Dataverse message log | Planned (see roadmap) |
 
 ## Documentation
 
@@ -35,6 +35,9 @@ Until the backend is deployed, sends return `NotSent` (`ChannelApiNotConfigured`
 - [Localization (English / Hebrew, RTL)](docs/localization.md)
 - [Design choices](docs/design-choices.md)
 - [Known limitations](docs/known-limitations.md)
+- [Security considerations](docs/security.md)
+- [Production sizing](docs/production-sizing.md)
+- [Developer integration (customer apps)](docs/developer-integration.md)
 - [Contributing](CONTRIBUTING.md)
 
 ## Repository layout
@@ -43,6 +46,10 @@ Until the backend is deployed, sends return `NotSent` (`ChannelApiNotConfigured`
 solution/AlexPushInboxChannel/   Dataverse solution source (pac solution unpack format)
 solution/src/                    Plug-in source (.NET Framework 4.8)
 deploy/post-import.sh            Grants CIJ read access to the channel configuration
+deploy/connect-azure.sh          Connects Dataverse to the Azure backend after azd up
+azure.yaml, infra/               azd template (Bicep)
+src/PushInbox.Functions/         Azure Functions: Channel API, Dispatcher, Inbox API (.NET 10 isolated)
+src/web/                         Reference PWA inbox (Web Push)
 tools/l10n/                      Translation export, fill, import and verify
 tests/solution/                  Solution structure and label check
 .githooks/                       Pre-commit hook (enable with tools/setup-hooks.sh)
@@ -50,8 +57,14 @@ tests/solution/                  Solution structure and label check
 
 ## Roadmap
 
-1. **Azure core:** Channel API with idempotency, Service Bus, Dispatcher, Cosmos DB inbox, delivery reports to CIJ, deployed with `azd up`.
-2. **Push and reference client:** Notification Hubs, Inbox API, and a PWA inbox tested end to end in a desktop browser.
-3. **Interactions:** inbox opened, clicked and dismissed events as CIJ custom triggers; `replaceKey` and expiry.
-4. **Hardening:** Power Platform managed identity for the plug-in, solution security roles, retry and dead-letter alerting, delete by recipient.
-5. **Release:** managed solution, integration guide for Android and iOS apps, sample journey.
+1. **Done (preview):** Azure core and Web Push. Channel API with idempotency, Service Bus, Dispatcher, Cosmos DB inbox, Notification Hubs, delivery reports to CIJ, reference PWA, `azd up`.
+2. **Required – Dataverse message log:** one row per message and status change in an elastic table, for audit and reporting. The schema is in [data-model.md](docs/data-model.md#planned-message-log-elastic-table). Where it appears in the UI is not decided yet.
+3. **Security:** authenticated Inbox API (end-user identity instead of `recipientKey` in the query string), Power Platform managed identity for the plug-in instead of the function key, solution security roles.
+4. **Interactions:** inbox opened and clicked events as CIJ custom triggers; `replaceKey`.
+5. **Images:** pick the image from the CIJ asset library instead of typing a URL.
+6. **Mobile apps:** Android (FCM v1) and iOS (APNs) device registration in the Inbox API; [developer integration guide](docs/developer-integration.md).
+7. **Release:** managed solution, sample journey, retry and dead-letter alerting, delete by recipient.
+
+## License
+
+[MIT](LICENSE).

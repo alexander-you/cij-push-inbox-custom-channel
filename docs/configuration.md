@@ -4,7 +4,7 @@
 
 | Display name | Schema name | Type | Value |
 |---|---|---|---|
-| Push channel service address | `alex_ChannelApiBaseUrl` | Text | Base URL of the Azure Channel API, for example `https://contoso-push.azurewebsites.net`. No default. |
+| Push channel service address | `alex_ChannelApiBaseUrl` | Text | Base URL of the Azure Channel API including `/api`, for example `https://func-contoso.azurewebsites.net/api` (the azd output `API_BASE_URL`). Set by `deploy/connect-azure.sh`. No default. |
 
 You can set the value in either of two ways ([Environment variables](https://learn.microsoft.com/power-apps/maker/data-platform/environmentvariables)):
 - In the maker portal, under **Solutions > Customer Insights Journeys - Push Inbox Channel > Environment variables**.
@@ -33,7 +33,7 @@ Marketers fill these in the built-in message editor of the journey tile. ([Messa
 |---|---|---|
 | Title | Yes | Up to 65 characters. Notification title and inbox subject. |
 | Message | Yes | Up to 1000 characters. The notification may shorten it; the inbox shows it in full. |
-| Image link | No | HTTPS URL. |
+| Image | No | Choose an image from the asset library. It must be an image asset; anything else is sent without an image. Upload a new asset rather than replacing one: CDN copies of a replaced asset can stay stale for up to 30 days ([Asset library](https://learn.microsoft.com/dynamics365/customer-insights/journeys/upload-images-files)). |
 | Tap action link | No | Web page or app deep link. CIJ may shorten links in custom channel messages. ([Create custom channels](https://learn.microsoft.com/dynamics365/customer-insights/journeys/real-time-marketing-create-custom-channels)) |
 | Delivery mode | Yes | *Alert + Inbox*, *Inbox only* or *Alert only*. |
 | Inbox expiry (days) | No | 1–180. Empty means the channel default. |
@@ -45,8 +45,15 @@ Marketers fill these in the built-in message editor of the journey tile. ([Messa
 |---|---|
 | CIJ service | Read on `alex_pushchannelinstance`, granted by `deploy/post-import.sh` ([installation](installation.md#3-grant-cij-read-access-to-the-channel-configuration)). ([Channel instance account and Extensible role](https://learn.microsoft.com/dynamics365/customer-insights/journeys/real-time-marketing-define-channel-instance-account)) |
 | Admins who configure channels | Create, read, write and delete on `alex_pushchannelinstance`. Until the solution's own roles ship, use System Administrator or System Customizer. |
-| Azure backend | A server-to-server application user that can run the `alex_PushDeliveryReport` custom API. ([Application users](https://learn.microsoft.com/power-platform/admin/manage-application-users), [Server-to-server authentication](https://learn.microsoft.com/power-apps/developer/data-platform/use-single-tenant-server-server-authentication)) |
+| Azure backend | An application user for the Function App's managed identity, with Basic User, to run the `alex_PushDeliveryReport` custom API. Created by `deploy/connect-azure.sh`. ([Application users](https://learn.microsoft.com/power-platform/admin/manage-application-users)) |
 
 ## Azure keys and secrets
 
-The planned Azure backend keeps the Notification Hubs connection string, the VAPID key pair for browser push, and its Dataverse credentials in Key Vault, accessed through Key Vault references. ([Key Vault references](https://learn.microsoft.com/azure/app-service/app-service-key-vault-references), [Notification Hubs browser push](https://learn.microsoft.com/azure/notification-hubs/browser-push)) Don't store these in Dataverse.
+| Secret | Where it lives |
+|---|---|
+| Notification Hubs connection string (Listen + Send rule) | Key Vault secret, read by the Function App through a Key Vault reference. ([Key Vault references](https://learn.microsoft.com/azure/app-service/app-service-key-vault-references)) |
+| VAPID private key | The Notification Hub's browser credential, and the azd environment on the deploying machine (`.azure/`, git-ignored). ([Notification Hubs browser push](https://learn.microsoft.com/azure/notification-hubs/browser-push)) |
+| Function key | Function App host keys. For test environments it's also copied to `alex_channelapikey` (column-secured). |
+| Storage, Service Bus, Cosmos DB, Dataverse | No secrets: the Function App's managed identity is used. |
+
+Details and residual risks: [security.md](security.md).

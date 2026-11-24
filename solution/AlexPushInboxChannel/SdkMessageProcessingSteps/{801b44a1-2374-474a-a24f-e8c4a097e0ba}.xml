@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<SdkMessageProcessingStep Name="Alex.PushInbox.Plugins.DefaultExpiryPlugin: Create of alex_pushchannelinstance" SdkMessageProcessingStepId="{801b44a1-2374-474a-a24f-e8c4a097e0ba}" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <SdkMessageId>9ebdbb1b-ea3e-db11-86a7-000a3a5473e8</SdkMessageId>
+  <PluginTypeName>Alex.PushInbox.Plugins.DefaultExpiryPlugin, Alex.PushInbox.Plugins, Version=1.0.0.0, Culture=neutral, PublicKeyToken=9463c92e61eee4c1</PluginTypeName>
+  <PluginTypeId>14053d22-6f58-4714-ac79-60a454659424</PluginTypeId>
+  <PrimaryEntity>alex_pushchannelinstance</PrimaryEntity>
+  <AsyncAutoDelete>0</AsyncAutoDelete>
+  <Description>Sets alex_defaultexpirydays to 30 when it is empty on create.</Description>
+  <FilteringAttributes></FilteringAttributes>
+  <ImpersonatingUserIdName></ImpersonatingUserIdName>
+  <InvocationSource>1</InvocationSource>
+  <Mode>0</Mode>
+  <Rank>1</Rank>
+  <EventHandlerTypeCode>4602</EventHandlerTypeCode>
+  <Stage>20</Stage>
+  <IsCustomizable>1</IsCustomizable>
+  <IsHidden>0</IsHidden>
+  <SupportedDeployment>0</SupportedDeployment>
+  <IntroducedVersion>1.0.0.0</IntroducedVersion>
+  <SdkMessageProcessingStepImages />
+</SdkMessageProcessingStep>

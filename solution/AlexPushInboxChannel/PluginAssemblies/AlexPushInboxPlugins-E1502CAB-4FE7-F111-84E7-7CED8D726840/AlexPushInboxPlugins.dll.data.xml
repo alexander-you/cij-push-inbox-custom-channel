@@ -6,6 +6,10 @@
   <IntroducedVersion>1.0.0.0</IntroducedVersion>
   <FileName>/PluginAssemblies/AlexPushInboxPlugins-E1502CAB-4FE7-F111-84E7-7CED8D726840/AlexPushInboxPlugins.dll</FileName>
   <PluginTypes>
+    <PluginType AssemblyQualifiedName="Alex.PushInbox.Plugins.DefaultExpiryPlugin, Alex.PushInbox.Plugins, Version=1.0.0.0, Culture=neutral, PublicKeyToken=9463c92e61eee4c1" PluginTypeId="14053d22-6f58-4714-ac79-60a454659424" Name="Alex.PushInbox.Plugins.DefaultExpiryPlugin">
+      <Description>Sets the default inbox expiry to 30 days when a push sender is created without a value.</Description>
+      <FriendlyName>Default inbox expiry</FriendlyName>
+    </PluginType>
     <PluginType AssemblyQualifiedName="Alex.PushInbox.Plugins.DeliveryReportPlugin, Alex.PushInbox.Plugins, Version=1.0.0.0, Culture=neutral, PublicKeyToken=9463c92e61eee4c1" PluginTypeId="0a512cab-4fe7-f111-84e7-7ced8d726840" Name="Alex.PushInbox.Plugins.DeliveryReportPlugin">
       <Description>Push delivery report plug-in for the Push Inbox custom channel.</Description>
       <FriendlyName>Push delivery report</FriendlyName>

@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.ServiceModel;
 using System.Text;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Query;
@@ -16,6 +17,8 @@ namespace Alex.PushInbox.Plugins
     public class OutboundPlugin : IPlugin
     {
         internal const string BaseUrlVariable = "alex_ChannelApiBaseUrl";
+        internal const string ImagePart = "imageId";
+        internal const string ImageUrlHeader = "x-push-image-url";
         private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(15);
         private static readonly HttpClient Http = new HttpClient { Timeout = Timeout };
 
@@ -31,6 +34,7 @@ namespace Alex.PushInbox.Plugins
                 throw new InvalidPluginExecutionException("The payload parameter is empty.");
             }
 
+            TraceRequest(context, raw, trace);
             var payload = Json.Deserialize<OutboundPayload>(raw);
             trace.Trace("RequestId {0}, ChannelDefinitionId {1}", payload.RequestId, payload.ChannelDefinitionId);
 
@@ -54,13 +58,22 @@ namespace Alex.PushInbox.Plugins
             else
             {
                 var config = GetSenderConfig(service, payload);
-                Forward(baseUrl, raw, config, response, trace);
+                var imageUrl = ResolveImage(service, ReadImagePart(raw, trace), trace);
+                Forward(baseUrl, raw, config, imageUrl, response, trace);
             }
 
-            context.OutputParameters["response"] = Json.Serialize(response);
+            var serialized = Json.Serialize(response);
+            trace.Trace("Response: {0}", serialized);
+            context.OutputParameters["response"] = serialized;
         }
 
-        private static void Forward(string baseUrl, string raw, Entity config, OutboundResponse response, ITracingService trace)
+        // Traces only non-personal metadata. The CIJ payload (recipient and message content) is never written to the trace log.
+        private static void TraceRequest(IPluginExecutionContext context, string raw, ITracingService trace)
+        {
+            trace.Trace("Message {0}, Depth {1}, CorrelationId {2}, payload length {3}", context.MessageName, context.Depth, context.CorrelationId, raw.Length);
+        }
+
+        private static void Forward(string baseUrl, string raw, Entity config, string imageUrl, OutboundResponse response, ITracingService trace)
         {
             var request = new HttpRequestMessage(HttpMethod.Post, baseUrl.TrimEnd('/') + "/messages")
             {
@@ -71,6 +84,11 @@ namespace Alex.PushInbox.Plugins
             if (expiry.HasValue)
             {
                 request.Headers.Add("x-push-default-expiry-days", expiry.Value.ToString());
+            }
+
+            if (imageUrl != null)
+            {
+                request.Headers.Add(ImageUrlHeader, imageUrl);
             }
 
             var key = config?.GetAttributeValue<string>("alex_channelapikey");
@@ -115,6 +133,73 @@ namespace Alex.PushInbox.Plugins
             {
                 throw new InvalidPluginExecutionException("Channel API returned " + (int)result.StatusCode + ". CIJ will retry.");
             }
+        }
+
+        private static string ReadImagePart(string raw, ITracingService trace)
+        {
+            try
+            {
+                var parts = Json.Deserialize<OutboundMessage>(raw).Message;
+                string value = null;
+                parts?.TryGetValue(ImagePart, out value);
+                return value;
+            }
+            catch (Exception ex)
+            {
+                trace.Trace("Image part not read: {0}", ex.GetType().Name);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// An image part (type image) holds the msdyncrm_file ID of an asset-library image.
+        /// Returns the asset's public CDN URL (msdyncrm_blobcdnuri). An https URL passes through.
+        /// Anything else returns null: the message is sent without an image.
+        /// </summary>
+        internal static string ResolveImage(IOrganizationService service, string value, ITracingService trace)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return null;
+            value = value.Trim();
+
+            if (Uri.TryCreate(value, UriKind.Absolute, out var uri))
+            {
+                if (uri.Scheme == Uri.UriSchemeHttps) return uri.AbsoluteUri;
+                trace.Trace("Image not sent: the value is a URL but not https.");
+                return null;
+            }
+
+            if (!Guid.TryParse(value, out var fileId))
+            {
+                trace.Trace("Image not sent: the value is neither an asset ID nor an https URL.");
+                return null;
+            }
+
+            Entity file;
+            try
+            {
+                file = service.Retrieve("msdyncrm_file", fileId, new ColumnSet("msdyncrm_blobcdnuri", "msdyncrm_contenttype"));
+            }
+            catch (FaultException<OrganizationServiceFault> ex)
+            {
+                trace.Trace("Image not sent: asset {0} could not be read ({1}).", fileId, ex.Detail?.ErrorCode);
+                return null;
+            }
+
+            var cdn = file.GetAttributeValue<string>("msdyncrm_blobcdnuri");
+            var contentType = file.GetAttributeValue<string>("msdyncrm_contenttype") ?? string.Empty;
+            if (!Uri.TryCreate(cdn, UriKind.Absolute, out var cdnUri) || cdnUri.Scheme != Uri.UriSchemeHttps)
+            {
+                trace.Trace("Image not sent: asset {0} has no public https URL.", fileId);
+                return null;
+            }
+
+            if (!contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+            {
+                trace.Trace("Image not sent: asset {0} is not an image.", fileId);
+                return null;
+            }
+
+            return cdnUri.AbsoluteUri;
         }
 
         private static Entity GetSenderConfig(IOrganizationService service, OutboundPayload payload)

@@ -1,0 +1,9 @@
+{
+  "name": "Push Inbox (test harness)",
+  "short_name": "Push Inbox",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0f6cbd",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

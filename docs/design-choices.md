@@ -18,8 +18,8 @@ The key choices behind the solution, with the public documentation that supports
 ([Solution publisher](https://learn.microsoft.com/power-apps/maker/data-platform/create-solution#solution-publisher), [Solution concepts](https://learn.microsoft.com/power-platform/alm/solution-concepts-alm), [Channel definition](https://learn.microsoft.com/dynamics365/customer-insights/journeys/real-time-marketing-define-channel-definition), [Message parts](https://learn.microsoft.com/dynamics365/customer-insights/journeys/real-time-marketing-custom-channel-message-parts))
 
 **Seven message parts, built-in editor.**
-- Parts: `title`, `body`, `imageUrl`, `actionUrl`, `deliveryMode`, `inboxExpiryDays` and `replaceKey`.
-- `imageUrl` is plain text, because the `image` type returns a file ID instead of a URL.
+- Parts: `title`, `body`, `imageId`, `actionUrl`, `deliveryMode`, `inboxExpiryDays` and `replaceKey`.
+- `imageId` is the `image` type, so marketers pick from the CIJ asset library instead of typing a URL. The part returns a file ID, and the outbound plug-in turns it into the asset's public URL ([Message parts](https://learn.microsoft.com/dynamics365/customer-insights/journeys/real-time-marketing-custom-channel-message-parts), [Asset library](https://learn.microsoft.com/dynamics365/customer-insights/journeys/upload-images-files)). Earlier versions used a plain-text URL part; that was replaced because typed URLs bypass the library.
 - There's no channel account table (`msdyn_supportsaccount = 0`).
 
 ([Message parts](https://learn.microsoft.com/dynamics365/customer-insights/journeys/real-time-marketing-custom-channel-message-parts), [Message editor](https://learn.microsoft.com/dynamics365/customer-insights/journeys/real-time-marketing-custom-channel-message-editor), [Custom channels in CIJ](https://learn.microsoft.com/dynamics365/customer-insights/journeys/real-time-marketing-extend-outreach-custom-channels))
@@ -32,8 +32,8 @@ The key choices behind the solution, with the public documentation that supports
 
 **Inbox in Cosmos DB, not Dataverse.**
 - Inbox items are high-volume, expiring, per-recipient data. They live in Cosmos DB, partitioned by `recipientKey`, with a per-item TTL.
-- CIJ already stores delivery status and trigger events, so there's no Dataverse delivery log.
-- If a Dataverse store is ever required, it should be an elastic table.
+- CIJ stores delivery status and trigger events. v1 has no Dataverse message log.
+- **Planned (required): a Dataverse message log as an elastic table** (`alex_pushmessagelog`): one row per message event, written by the backend, deleted by TTL. Where it appears in the UI is not decided. Schema: [data-model.md](data-model.md#planned-message-log-elastic-table).
 
 ([Cosmos DB time to live](https://learn.microsoft.com/azure/cosmos-db/how-to-time-to-live), [Cosmos DB partitioning](https://learn.microsoft.com/azure/cosmos-db/partitioning-overview), [Elastic tables](https://learn.microsoft.com/power-apps/maker/data-platform/create-edit-elastic-tables), [Elastic tables for developers](https://learn.microsoft.com/power-apps/developer/data-platform/elastic-tables), [Custom channel custom APIs](https://learn.microsoft.com/dynamics365/customer-insights/journeys/real-time-marketing-custom-channel-custom-api))
 

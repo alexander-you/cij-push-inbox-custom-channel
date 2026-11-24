@@ -1,0 +1,103 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.RegularExpressions;
+using Newtonsoft.Json;
+
+namespace PushInbox.Functions;
+
+/// <summary>Queue message from the Channel API to the Dispatcher.</summary>
+public sealed class DispatchMessage
+{
+    public string MessageId { get; set; } = "";
+    public string IdempotencyId { get; set; } = "";
+    public string RequestId { get; set; } = "";
+    public Guid ChannelDefinitionId { get; set; }
+    public string From { get; set; } = "";
+    public string To { get; set; } = "";
+    public string AppKey { get; set; } = "";
+    public string RecipientKey { get; set; } = "";
+    public string? CustomerJourneyId { get; set; }
+    public bool IsTestSend { get; set; }
+    public string Title { get; set; } = "";
+    public string Body { get; set; } = "";
+    public string? ImageUrl { get; set; }
+    public string? ActionUrl { get; set; }
+    public DeliveryMode Mode { get; set; }
+    public int ExpiryDays { get; set; }
+    public string? ReplaceKey { get; set; }
+}
+
+public enum DeliveryMode { AlertAndInbox = 1, InboxOnly = 2, AlertOnly = 3 }
+
+/// <summary>Cosmos container "dispatches" (partition key /idempotencyId).</summary>
+public sealed class DispatchRecord
+{
+    [JsonProperty("id")] public string Id { get; set; } = "";
+    [JsonProperty("idempotencyId")] public string IdempotencyId { get; set; } = "";
+    [JsonProperty("messageId")] public string MessageId { get; set; } = "";
+    [JsonProperty("requestId")] public string RequestId { get; set; } = "";
+    [JsonProperty("recipientKey")] public string RecipientKey { get; set; } = "";
+    [JsonProperty("appKey")] public string AppKey { get; set; } = "";
+    [JsonProperty("isTestSend")] public bool IsTestSend { get; set; }
+    [JsonProperty("status")] public string Status { get; set; } = "Accepted";
+    [JsonProperty("statusDetail")] public string? StatusDetail { get; set; }
+    [JsonProperty("createdOn")] public DateTimeOffset CreatedOn { get; set; }
+    [JsonProperty("updatedOn")] public DateTimeOffset? UpdatedOn { get; set; }
+}
+
+/// <summary>Cosmos container "inboxItems" (partition key /recipientKey).</summary>
+public sealed class InboxItem
+{
+    [JsonProperty("id")] public string Id { get; set; } = "";
+    [JsonProperty("recipientKey")] public string RecipientKey { get; set; } = "";
+    [JsonProperty("appKey")] public string AppKey { get; set; } = "";
+    [JsonProperty("messageId")] public string MessageId { get; set; } = "";
+    [JsonProperty("requestId")] public string RequestId { get; set; } = "";
+    [JsonProperty("channelDefinitionId")] public Guid ChannelDefinitionId { get; set; }
+    [JsonProperty("customerJourneyId")] public string? CustomerJourneyId { get; set; }
+    [JsonProperty("title")] public string Title { get; set; } = "";
+    [JsonProperty("body")] public string Body { get; set; } = "";
+    [JsonProperty("imageUrl")] public string? ImageUrl { get; set; }
+    [JsonProperty("actionUrl")] public string? ActionUrl { get; set; }
+    [JsonProperty("replaceKey")] public string? ReplaceKey { get; set; }
+    [JsonProperty("dir")] public string Dir { get; set; } = "ltr";
+    [JsonProperty("createdOn")] public DateTimeOffset CreatedOn { get; set; }
+    [JsonProperty("expiresOn")] public DateTimeOffset ExpiresOn { get; set; }
+    [JsonProperty("readOn")] public DateTimeOffset? ReadOn { get; set; }
+    [JsonProperty("ttl")] public int Ttl { get; set; }
+}
+
+public static class Keys
+{
+    private static readonly Regex Disallowed = new("[^a-z0-9_@#.:-]", RegexOptions.Compiled);
+    private static readonly Regex Rtl = new("[\u0590-\u05FF\u0600-\u06FF]", RegexOptions.Compiled);
+
+    /// <summary>
+    /// Normalizes a recipient key to the Notification Hubs tag alphabet (alphanumeric and _ @ # . : -).
+    /// The same function runs at device registration and at send, so "+972 54123" and "97254123" match.
+    /// Hyphens are kept, so senders and apps must use the same phone format.
+    /// </summary>
+    public static string Recipient(string? value)
+    {
+        var key = Disallowed.Replace((value ?? "").Trim().ToLowerInvariant(), "");
+        return key.Length > 100 ? key[..100] : key;
+    }
+
+    public static string App(string? value) => Recipient(value);
+
+    public static string InboxItemId(string appKey, string? replaceKey, string messageId) =>
+        string.IsNullOrWhiteSpace(replaceKey)
+            ? messageId
+            : "r-" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(appKey + "|" + replaceKey))).ToLowerInvariant()[..40];
+
+    /// <summary>Pseudonymous id for logs: the first 12 hex characters of SHA-256, so recipient keys never appear in telemetry.</summary>
+    public static string LogId(string? value) =>
+        string.IsNullOrEmpty(value) ? "" : Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant()[..12];
+
+    /// <summary>Notification Hubs recipient tag. Hubs don't encrypt tags at rest, so the recipient key is stored as a SHA-256 hash.</summary>
+    public static string RecipientTag(string recipientKey) =>
+        "rk:" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(recipientKey))).ToLowerInvariant();
+
+    /// <summary>"rtl" when the text contains Hebrew or Arabic letters, otherwise "ltr".</summary>
+    public static string Direction(params string?[] texts) => texts.Any(t => t != null && Rtl.IsMatch(t)) ? "rtl" : "ltr";
+}

@@ -18,6 +18,13 @@ namespace Alex.PushInbox.Plugins
         [DataMember] public string To { get; set; }
     }
 
+    // The message parts, keyed by msdyn_name. Read separately so an unexpected shape can't break the send.
+    [DataContract]
+    public class OutboundMessage
+    {
+        [DataMember] public Dictionary<string, string> Message { get; set; }
+    }
+
     [DataContract]
     public class OutboundResponse
     {
@@ -50,7 +57,7 @@ namespace Alex.PushInbox.Plugins
         [DataMember] public string From { get; set; }
         [DataMember] public string OrganizationId { get; set; }
         [DataMember] public string Status { get; set; }
-        [DataMember] public Dictionary<string, string> StatusDetails { get; set; } = new Dictionary<string, string>();
+        [DataMember(EmitDefaultValue = false)] public ResponseDetails Details { get; set; }
     }
 
     public static class Json

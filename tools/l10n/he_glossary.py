@@ -27,7 +27,7 @@ HE = {
  "GENERAL": "כללי",
  "General": "כללי",
  "Header": "כותרת עליונה",
- "How many days a message stays in the app inbox if the message doesn't set its own value. Maximum 180.": "מספר הימים שהודעה נשארת בתיבת ההודעות באפליקציה, כאשר ההודעה עצמה לא קובעת ערך. מקסימום 180.",
+ "How many days a message stays in the app inbox if the message doesn't set its own value. 1 to 180; default 30.": "מספר הימים שהודעה נשארת בתיבת ההודעות באפליקציה, כאשר ההודעה עצמה לא קובעת ערך. בין 1 ל-180; ברירת מחדל 30.",
  "Identifies the mobile or web app that receives these messages. Your app team provides it. Use only letters, numbers and hyphens.": "מזהה את אפליקציית המובייל או אפליקציית האינטרנט שמקבלת את ההודעות. צוות האפליקציה מספק אותו. יש להשתמש באותיות לועזיות, ספרות ומקפים בלבד.",
  "Import Sequence Number": "מספר רצף ייבוא",
  "Inactive": "לא פעיל",

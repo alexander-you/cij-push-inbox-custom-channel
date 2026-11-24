@@ -1,0 +1,15 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environmentName": { "value": "${AZURE_ENV_NAME}" },
+    "location": { "value": "${AZURE_LOCATION}" },
+    "resourceGroupName": { "value": "${AZURE_RESOURCE_GROUP_NAME=}" },
+    "cosmosLocation": { "value": "${COSMOS_LOCATION=}" },
+    "dataverseUrl": { "value": "${DATAVERSE_URL=}" },
+    "vapidPublicKey": { "value": "${VAPID_PUBLIC_KEY}" },
+    "vapidPrivateKey": { "value": "${VAPID_PRIVATE_KEY}" },
+    "vapidSubject": { "value": "${VAPID_SUBJECT}" },
+    "budgetContactEmails": { "value": "${BUDGET_CONTACT_EMAILS=}" }
+  }
+}

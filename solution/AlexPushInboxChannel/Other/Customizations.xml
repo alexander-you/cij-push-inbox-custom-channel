@@ -25,8 +25,8 @@
   "ChannelMessagePart.title.Description": "הכותרת בהתראה ונושא ההודעה בתיבת ההודעות. עד 65 תווים.",
   "ChannelMessagePart.body.DisplayName": "הודעה",
   "ChannelMessagePart.body.Description": "טקסט ההודעה. ההתראה עשויה לקצר אותו; תיבת ההודעות מציגה אותו במלואו.",
-  "ChannelMessagePart.imageUrl.DisplayName": "קישור לתמונה",
-  "ChannelMessagePart.imageUrl.Description": "קישור אופציונלי לתמונה שמוצגת עם ההודעה. חייב להתחיל ב-https://.",
+  "ChannelMessagePart.imageId.DisplayName": "תמונה",
+  "ChannelMessagePart.imageId.Description": "תמונה אופציונלית מספריית הנכסים, שמוצגת עם ההודעה.",
   "ChannelMessagePart.actionUrl.DisplayName": "קישור לפעולה בהקשה",
   "ChannelMessagePart.actionUrl.Description": "לאן הלקוח מגיע בהקשה: דף אינטרנט או מסך באפליקציה.",
   "ChannelMessagePart.deliveryMode.DisplayName": "אופן מסירה",
@@ -52,8 +52,8 @@
   "ChannelMessagePart.title.Description": "Headline on the notification and the inbox subject. Up to 65 characters.",
   "ChannelMessagePart.body.DisplayName": "Message",
   "ChannelMessagePart.body.Description": "Main message text. The notification may shorten it; the inbox shows it in full.",
-  "ChannelMessagePart.imageUrl.DisplayName": "Image link",
-  "ChannelMessagePart.imageUrl.Description": "Optional link to an image shown with the message. Must start with https://.",
+  "ChannelMessagePart.imageId.DisplayName": "Image",
+  "ChannelMessagePart.imageId.Description": "Optional image from the asset library, shown with the message.",
   "ChannelMessagePart.actionUrl.DisplayName": "Tap action link",
   "ChannelMessagePart.actionUrl.Description": "Where the customer goes on tap: a web page or a screen in the app.",
   "ChannelMessagePart.deliveryMode.DisplayName": "Delivery mode",
@@ -93,13 +93,12 @@
       <msdyn_channeldefinitionid>
         <msdyn_channeldefinitionid>b0d2cb5f-fc8a-4f71-88fd-3f494aee6df2</msdyn_channeldefinitionid>
       </msdyn_channeldefinitionid>
-      <msdyn_description>Optional link to an image shown with the message. Must start with https://.</msdyn_description>
-      <msdyn_displayname>Image link</msdyn_displayname>
+      <msdyn_description>Optional image from the asset library, shown with the message.</msdyn_description>
+      <msdyn_displayname>Image</msdyn_displayname>
       <msdyn_isrequired>0</msdyn_isrequired>
-      <msdyn_maxlength>1000</msdyn_maxlength>
-      <msdyn_name>imageUrl</msdyn_name>
+      <msdyn_name>imageId</msdyn_name>
       <msdyn_order>50</msdyn_order>
-      <msdyn_type>192350000</msdyn_type>
+      <msdyn_type>192350004</msdyn_type>
       <statecode>0</statecode>
       <statuscode>1</statuscode>
     </msdyn_channelmessagepart>

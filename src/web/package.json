@@ -1,0 +1,7 @@
+{
+  "name": "push-inbox-pwa",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Reference PWA (test harness) for the Push + Inbox channel. Static files, no build step.",
+  "scripts": { "build": "echo static" }
+}
