@@ -21,7 +21,7 @@ flowchart LR
 
 | Part | Status |
 |---|---|
-| Dataverse solution `AlexPushInboxChannel` 1.0.0.0: channel definition, 7 message parts, config table and form, custom APIs, plug-ins, environment variable, English and Hebrew labels | Available |
+| Dataverse solution `AlexPushInboxChannel` 1.1.0.0: channel definition, 7 message parts, config table and form, custom APIs, plug-ins, environment variable, message log, English and Hebrew labels | Available as managed and unmanaged packages in [`release/1.1.0.0`](release/README.md) |
 | Azure backend (`azd up`): Channel API with idempotency, Service Bus, Dispatcher, Cosmos DB inbox, Notification Hubs Web Push, delivery reports to CIJ | Available (preview) |
 | Reference PWA inbox (Static Web Apps) and Inbox API | Available as a **test harness**: the Inbox API is anonymous. See [known limitations](docs/known-limitations.md). |
 | Dataverse message log `alex_pushmessagelog` (elastic table, async writer, Log Writer / Log Reader roles) | Available (preview). See [data model](docs/data-model.md#8-message-log-elastic-table-alex_pushmessagelog). |
@@ -29,13 +29,17 @@ flowchart LR
 
 ## Documentation
 
-- [Installation](docs/installation.md)
+**Start here:** the [implementer guide](docs/implementer-guide.md) walks through the whole path, from prerequisites to a verified journey send.
+
+- [Implementer guide](docs/implementer-guide.md)
+- [Installation](docs/installation.md) (including upgrade and uninstall)
 - [Configuration](docs/configuration.md)
 - [Architecture](docs/architecture.md)
 - [Data model reference](docs/data-model.md)
 - [Localization (English / Hebrew, RTL)](docs/localization.md)
 - [Design choices](docs/design-choices.md)
 - [Known limitations](docs/known-limitations.md)
+- [Troubleshooting](docs/troubleshooting.md)
 - [Security considerations](docs/security.md)
 - [Production sizing](docs/production-sizing.md)
 - [Developer integration (customer apps)](docs/developer-integration.md)
@@ -44,6 +48,7 @@ flowchart LR
 ## Repository layout
 
 ```text
+release/<version>/               Managed and unmanaged solution packages (see release/README.md)
 solution/AlexPushInboxChannel/   Dataverse solution source (pac solution unpack format)
 solution/src/                    Plug-in source (.NET Framework 4.8)
 deploy/post-import.sh            Grants CIJ read access to the channel configuration
@@ -64,7 +69,7 @@ tests/solution/                  Solution structure and label check
 4. **Interactions:** clicks are done through CIJ link tracking. Still open: an *opened* custom trigger if journeys must branch on app opens; `replaceKey`.
 5. **Images:** pick the image from the CIJ asset library instead of typing a URL.
 6. **Mobile apps:** Android (FCM v1) and iOS (APNs) device registration in the Inbox API; [developer integration guide](docs/developer-integration.md).
-7. **Release:** managed solution, sample journey, retry and dead-letter alerting, delete by recipient.
+7. **Release:** managed and unmanaged packages are done ([1.1.0.0](release/README.md)). Still open: a sample journey, dead-letter alerting, and delete by recipient.
 
 ## License
 

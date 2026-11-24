@@ -828,8 +828,8 @@
             <displayname description="מזהה נמען ביומן" languagecode="1037" />
           </displaynames>
           <Descriptions>
-            <Description description="Pseudonymous recipient ID: the first 12 hexadecimal characters of the SHA-256 hash of the recipient key. Matches the ID in Application Insights. Not personal data on its own." languagecode="1033" />
-            <Description description="מזהה נמען בדוי: 12 התווים ההקסדצימליים הראשונים של גיבוב SHA-256 של מפתח הנמען. תואם למזהה ב-Application Insights. אינו מידע אישי כשלעצמו." languagecode="1037" />
+            <Description description="Pseudonymous recipient ID: the first 12 hexadecimal characters of the SHA-256 hash of the recipient key. Matches the ID in Application Insights. Still personal data under GDPR; contains no raw recipient key." languagecode="1033" />
+            <Description description="מזהה נמען בדוי: 12 התווים ההקסדצימליים הראשונים של גיבוב SHA-256 של מפתח הנמען. תואם למזהה ב-Application Insights. עדיין נחשב מידע אישי לפי GDPR; אינו מכיל את מפתח הנמען הגולמי." languagecode="1037" />
           </Descriptions>
         </attribute>
         <attribute PhysicalName="alex_RequestId">

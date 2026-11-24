@@ -10,22 +10,40 @@
   - Python 3
 - **Hebrew (optional):** enable it in the environment to use the Hebrew labels. ([Enable languages](https://learn.microsoft.com/power-platform/admin/enable-languages))
 
-## 1. Build the solution package
+## 1. Get the solution package
 
-The unpacked solution in `solution/AlexPushInboxChannel/` is the source of truth. ([SolutionPackager](https://learn.microsoft.com/power-platform/alm/solution-packager-tool))
+Choose one of these packages:
+
+| Package | Use it for |
+|---|---|
+| `release/<version>/AlexPushInboxChannel_<version>_managed.zip` | Test, UAT and production environments. |
+| `release/<version>/AlexPushInboxChannel_<version>.zip` | A development environment where you'll customize the solution. |
+| Built from source (below) | Contributing to this repository. |
+
+[release/README.md](../release/README.md) lists the checksums and changes for each version ([Solution concepts](https://learn.microsoft.com/power-platform/alm/solution-concepts-alm)).
+
+You can't import the managed package into an environment that already has this solution as unmanaged ([Solution concepts](https://learn.microsoft.com/power-platform/alm/solution-concepts-alm)).
+
+**To build from source:** the unpacked solution in `solution/AlexPushInboxChannel/` is the source of truth ([SolutionPackager](https://learn.microsoft.com/power-platform/alm/solution-packager-tool)).
 
 ```bash
 python3 tests/solution/check_solution.py
 pac solution pack --zipfile out/AlexPushInboxChannel.zip --folder solution/AlexPushInboxChannel --packagetype Unmanaged
 ```
 
-For production, import the unmanaged package into a development environment, then export it as managed with `pac solution export --managed` and deploy that package. ([Solution concepts](https://learn.microsoft.com/power-platform/alm/solution-concepts-alm))
+To ship your own customized version, do this in your development environment:
+1. Import the unmanaged package.
+2. Make your changes.
+3. Export the solution as managed with `pac solution export --managed`.
 
 ## 2. Import
 
 ```bash
-pac solution import --environment https://<org>.crm.dynamics.com --path out/AlexPushInboxChannel.zip --async
+pac solution import --environment https://<org>.crm.dynamics.com --path release/1.1.0.0/AlexPushInboxChannel_1_1_0_0_managed.zip --async
 ```
+
+- `pac` uses the active auth profile unless you pass `--environment`. Always pass it, so that you don't import into the wrong environment ([pac solution import](https://learn.microsoft.com/power-platform/developer/cli/reference/solution#pac-solution-import)).
+- The environment variable `alex_ChannelApiBaseUrl` is imported with no value. Step 4.3 sets it. You can also set it at import time with a deployment settings file ([configuration](configuration.md#environment-variable)).
 
 ## 3. Grant CIJ read access to the channel configuration
 
@@ -100,7 +118,10 @@ The script is idempotent. It:
 
 1. Sets the environment variable value `alex_ChannelApiBaseUrl` to `API_BASE_URL`. ([Environment variables](https://learn.microsoft.com/power-apps/maker/data-platform/environmentvariables))
 2. Creates a Dataverse **application user** for the Function App's managed identity and gives it **Basic User**, so the dispatcher can call the `alex_PushDeliveryReport` custom API. ([Application users](https://learn.microsoft.com/power-platform/admin/manage-application-users))
-3. Optional, **test environments only**: writes the default function key into `alex_channelapikey` on the given channel instance. Create the channel instance first ([configuration](configuration.md#channel-instance-push-sender)). For production see [security](security.md).
+3. Gives the same application user the **Push Inbox Log Writer** role, so the backend can write the message log ([data model §8](data-model.md#8-message-log-elastic-table-alex_pushmessagelog)).
+4. Optional, **test environments only**: writes the default function key into `alex_channelapikey` on the given channel instance. Create the channel instance first ([configuration](configuration.md#channel-instance-push-sender)). For production, see [security](security.md).
+
+**Marketers and admins who read the message log** need the **Push Inbox Log Reader** role. Assign it in the Power Platform admin center ([Assign a security role to a user](https://learn.microsoft.com/power-platform/admin/assign-security-roles)).
 
 ## 5. Configure CIJ and run the first test
 
@@ -109,7 +130,9 @@ The script is idempotent. It:
 3. In a CIJ message for the Push + Inbox channel, use **Test send**. Enter the same recipient value, choose a preview contact if the message has personalization, and send.
 4. Expected: a browser notification, and the item in the PWA inbox. Test sends carry an empty `RequestId`, so no delivery report is sent for them.
 
-Troubleshooting: Application Insights shows `Accepted …`, `Inbox item … stored`, and `Notification Hubs send … success N` for every message. `success 0` means no browser is subscribed for that recipient and app key.
+For a real send, build a short journey: a trigger or segment, then a **Push + Inbox** message tile. The delivery status, and clicks on the tracked links, show in the tile's analytics after a delay of **tens of minutes**.
+
+Troubleshooting ([full guide](troubleshooting.md)): Application Insights shows `Accepted …`, `Inbox item … stored`, and `Notification Hubs send … success N` for every message. `success 0` means no browser is subscribed for that recipient and app key.
 
 ## 6. Verify
 
@@ -122,8 +145,24 @@ Troubleshooting: Application Insights shows `Accepted …`, `Inbox item … stor
 6. **Inbox API:** `GET {API_BASE_URL}/inbox?appKey=<app key>&recipientKey=<recipient>` returns the item.
 7. **Hebrew labels:** `python3 tools/l10n/translations.py verify https://<org>.crm.dynamics.com` prints `problems: 0`. A user with Hebrew as UI language sees Hebrew, right-to-left forms and views. ([Personal options (language)](https://learn.microsoft.com/power-apps/user/set-personal-options))
 
+## Upgrade
+
+1. **Import the new package of the same type.**
+   - **Managed:** keep the default *Upgrade* option. It removes components that are no longer in the new version ([Update solutions](https://learn.microsoft.com/power-platform/alm/update-solutions-alm)).
+   - **Unmanaged:** the import adds and updates components but never deletes any.
+2. **Rerun `deploy/post-import.sh` and `deploy/connect-azure.sh`.** Both are idempotent.
+3. **Redeploy the backend.** Run `azd deploy` (code only) or `azd up` (infrastructure too).
+4. **Read the version notes** in [release/README.md](../release/README.md) and [known limitations](known-limitations.md). Some changes need a manual step. For example, upgrading from the plain-text image part requires one.
+
+**Order.** Deploy the backend before the solution when the new version adds parts or APIs that the backend must handle. Otherwise the order doesn't matter: the plug-in only calls the Channel API.
+
 ## Uninstall
 
-Delete the solution. The relationship uses `RemoveLink`, so existing CIJ channel instances lose their link to the config row but aren't deleted. Remove those channel instances in CIJ first. ([Custom channel instance](https://learn.microsoft.com/dynamics365/customer-insights/journeys/real-time-marketing-define-custom-channel-instance))
+Delete the solution.
+
+- **Managed package:** deleting it removes its components, including the message log table and all its rows.
+- **Unmanaged package:** deleting the solution removes only the solution container. The tables, APIs and other components stay, and you must delete them yourself ([Solution concepts](https://learn.microsoft.com/power-platform/alm/solution-concepts-alm)).
+
+The relationship uses `RemoveLink`, so existing CIJ channel instances lose their link to the config row but aren't deleted. Remove those channel instances in CIJ first. ([Custom channel instance](https://learn.microsoft.com/dynamics365/customer-insights/journeys/real-time-marketing-define-custom-channel-instance))
 
 To remove the Azure backend, run `azd down --purge` (purges the soft-deleted Key Vault). Then delete the managed identity's application user in Dataverse. ([azd down](https://learn.microsoft.com/azure/developer/azure-developer-cli/reference#azd-down))
