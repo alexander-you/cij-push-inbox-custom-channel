@@ -9,8 +9,10 @@
   <EntityRelationships />
   <OrganizationSettings />
   <optionsets />
+  <WebResources />
   <CustomControls />
   <SolutionPluginAssemblies />
+  <SdkMessageProcessingSteps />
   <EntityDataProviders />
   <msdyn_channeldefinitionlocales>
     <msdyn_channeldefinitionlocale msdyn_channeldefinitionlocaleid="a2ba9584-05e7-45de-ac7f-7fa3715da92f">

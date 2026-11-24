@@ -69,6 +69,8 @@ public sealed class InboxItem
     [JsonProperty("requestId")] public string RequestId { get; set; } = "";
     [JsonProperty("channelDefinitionId")] public Guid ChannelDefinitionId { get; set; }
     [JsonProperty("customerJourneyId")] public string? CustomerJourneyId { get; set; }
+    /// <summary>Null on items stored before the message log existed.</summary>
+    [JsonProperty("isTestSend")] public bool? IsTestSend { get; set; }
     [JsonProperty("title")] public string Title { get; set; } = "";
     [JsonProperty("body")] public string Body { get; set; } = "";
     [JsonProperty("imageUrl")] public string? ImageUrl { get; set; }
@@ -79,6 +81,63 @@ public sealed class InboxItem
     [JsonProperty("expiresOn")] public DateTimeOffset ExpiresOn { get; set; }
     [JsonProperty("readOn")] public DateTimeOffset? ReadOn { get; set; }
     [JsonProperty("ttl")] public int Ttl { get; set; }
+}
+
+/// <summary>Option values of alex_pushmessagelog.alex_eventtype (publisher option prefix 62621).</summary>
+public enum LogEventType
+{
+    Accepted = 626210000,
+    Rejected = 626210001,
+    Dispatched = 626210002,
+    Delivered = 626210003,
+    NotDelivered = 626210004,
+    Read = 626210005,
+    Clicked = 626210006,
+}
+
+/// <summary>Queue message for the message-log queue. One event becomes one alex_pushmessagelog row.</summary>
+public sealed class LogEvent
+{
+    /// <summary>Row primary key. Deterministic for once-per-message events, so a repeated event updates the same row.</summary>
+    public Guid EventId { get; set; }
+    public LogEventType Type { get; set; }
+    public string MessageId { get; set; } = "";
+    public string? RequestId { get; set; }
+    public string? IdempotencyId { get; set; }
+    public string? RecipientKey { get; set; }
+    public string? AppKey { get; set; }
+    public bool IsTestSend { get; set; }
+    public DeliveryMode? Mode { get; set; }
+    public int? PnsSuccess { get; set; }
+    public int? PnsFailure { get; set; }
+    public string? Detail { get; set; }
+    public string? CustomerJourneyId { get; set; }
+    public Guid? ChannelDefinitionId { get; set; }
+    public DateTimeOffset EventOn { get; set; } = DateTimeOffset.UtcNow;
+
+    /// <summary>Name-based GUID (SHA-256 of message ID and event type) for events that happen once per message.</summary>
+    public static Guid OnceId(string messageId, LogEventType type)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes($"{messageId}|{(int)type}"));
+        hash[6] = (byte)((hash[6] & 0x0F) | 0x50);
+        hash[8] = (byte)((hash[8] & 0x3F) | 0x80);
+        return new Guid(hash.AsSpan(0, 16));
+    }
+
+    public static LogEvent For(DispatchMessage m, LogEventType type) => new()
+    {
+        EventId = OnceId(m.MessageId, type),
+        Type = type,
+        MessageId = m.MessageId,
+        RequestId = m.RequestId,
+        IdempotencyId = m.IdempotencyId,
+        RecipientKey = m.RecipientKey,
+        AppKey = m.AppKey,
+        IsTestSend = m.IsTestSend,
+        Mode = m.Mode,
+        CustomerJourneyId = m.CustomerJourneyId,
+        ChannelDefinitionId = m.ChannelDefinitionId == Guid.Empty ? null : m.ChannelDefinitionId,
+    };
 }
 
 public static class Keys

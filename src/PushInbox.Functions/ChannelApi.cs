@@ -15,7 +15,7 @@ namespace PushInbox.Functions;
 /// Validates, de-duplicates on IdempotencyId, enqueues and answers within the 20-second CIJ limit.
 /// A retry whose earlier attempt never confirmed the enqueue (record still Pending) is enqueued again.
 /// </summary>
-public sealed class ChannelApi(Store store, ServiceBusSender sender, ILogger<ChannelApi> log)
+public sealed class ChannelApi(Store store, ServiceBusSender sender, MessageLog messageLog, ILogger<ChannelApi> log)
 {
     private const int DefaultExpiryDays = 30;
     private const int MaxExpiryDays = 180;
@@ -35,17 +35,34 @@ public sealed class ChannelApi(Store store, ServiceBusSender sender, ILogger<Cha
         }
 
         var appKey = Keys.App(req.Headers["x-push-app-key"].ToString());
-        if (appKey.Length == 0) return Problem(HttpStatusCode.BadRequest, "MissingAppKey", "The channel instance has no app key.");
-
         var message = payload["Message"] as JObject ?? new JObject();
         var context = payload["MarketingAppContext"] as JObject;
+        async Task<IActionResult> Reject(string reason, string detail)
+        {
+            await messageLog.EmitAsync(new LogEvent
+            {
+                EventId = Guid.NewGuid(),
+                Type = LogEventType.Rejected,
+                MessageId = Guid.NewGuid().ToString(),
+                RequestId = (string?)payload["RequestId"],
+                IdempotencyId = (string?)payload["IdempotencyId"],
+                AppKey = appKey,
+                IsTestSend = (bool?)context?["IsTestSend"] ?? false,
+                Detail = $"{reason}: {detail}",
+                CustomerJourneyId = (string?)context?["CustomerJourneyId"],
+                ChannelDefinitionId = Guid.TryParse((string?)payload["ChannelDefinitionId"], out var cd) ? cd : null,
+            });
+            return Problem(HttpStatusCode.BadRequest, reason, detail);
+        }
+        if (appKey.Length == 0) return await Reject("MissingAppKey", "The channel instance has no app key.");
+
         var title = (string?)message["title"] ?? "";
         var body = (string?)message["body"] ?? "";
-        if (title.Length == 0 && body.Length == 0) return Problem(HttpStatusCode.BadRequest, "EmptyMessage", "Title and body are both empty.");
+        if (title.Length == 0 && body.Length == 0) return await Reject("EmptyMessage", "Title and body are both empty.");
 
         if (!TryParseMode((string?)message["deliveryMode"], out var mode))
         {
-            return Problem(HttpStatusCode.BadRequest, "InvalidDeliveryMode", $"Unknown delivery mode '{message["deliveryMode"]}'.");
+            return await Reject("InvalidDeliveryMode", $"Unknown delivery mode '{message["deliveryMode"]}'.");
         }
 
         // The outbound plug-in resolves the asset-library image (imageId part) to its public CDN URL and sends it in this header.
@@ -56,7 +73,7 @@ public sealed class ChannelApi(Store store, ServiceBusSender sender, ILogger<Cha
         var recipientKey = !string.IsNullOrEmpty(userId) && !string.IsNullOrEmpty(userType)
             ? Keys.Recipient($"{userType}_{userId}")
             : Keys.Recipient(to);
-        if (recipientKey.Length == 0) return Problem(HttpStatusCode.BadRequest, "MissingRecipient", "Neither MarketingAppContext.UserId nor To identifies a recipient.");
+        if (recipientKey.Length == 0) return await Reject("MissingRecipient", "Neither MarketingAppContext.UserId nor To identifies a recipient.");
 
         // Test sends carry empty RequestId and IdempotencyId (observed); generate a unique key so each test send is processed.
         var requestId = (string?)payload["RequestId"] ?? "";
@@ -124,6 +141,7 @@ public sealed class ChannelApi(Store store, ServiceBusSender sender, ILogger<Cha
         }, ct);
 
         await MarkEnqueuedAsync(idempotencyId, ct);
+        await messageLog.EmitAsync(LogEvent.For(dispatch, LogEventType.Accepted));
 
         log.LogInformation("Accepted {MessageId} for recipient {RecipientLogId} mode {Mode} test {IsTestSend} request {RequestId} reEnqueue {ReEnqueue}",
             dispatch.MessageId, Keys.LogId(recipientKey), mode, dispatch.IsTestSend, requestId, reEnqueue);

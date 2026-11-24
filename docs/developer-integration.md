@@ -116,7 +116,8 @@ All routes take `appKey` and `recipientKey` as query parameters in the test harn
 | Method and route | Result |
 |---|---|
 | `GET /inbox?appKey=…&recipientKey=…` | `200 { recipientKey, unread, items[] }`. Up to 100 items for that recipient and app key, newest first. |
-| `POST /inbox/{id}/read?appKey=…&recipientKey=…` | `204`. Sets `readOn`. `404` if the item doesn't exist or belongs to another app key. |
+| `POST /inbox/{id}/read?appKey=…&recipientKey=…` | `204`. Sets `readOn`; logs **Read** in the message log the first time. `404` if the item doesn't exist or belongs to another app key. |
+| `POST /inbox/{id}/click?appKey=…&recipientKey=…` | `204`. Logs a **Clicked** row in the message log (one per call). Call it when the app opens from a tracked link. `404` as above. |
 | `DELETE /inbox/{id}?appKey=…&recipientKey=…` | `204`. `404` as above. |
 
 **Item fields:**
@@ -133,17 +134,18 @@ All routes take `appKey` and `recipientKey` as query parameters in the test harn
 
 ## 3. How to report clicks
 
-Clicks are counted by **CIJ link tracking**. Your app reports nothing itself: it only opens the tracked link that CIJ put in the message.
+Clicks are counted by **CIJ link tracking**: your app only opens the tracked link that CIJ put in the message. Separately, when the app opens from a tracked link, it should call `POST /inbox/{id}/click` so the solution's message log records a **Clicked** row ([data-model §8](data-model.md#8-message-log-elastic-table-alex_pushmessagelog)). That call doesn't affect CIJ analytics.
 
 ### How it works (verified end to end with the PWA, EN environment, 24 Nov 2026)
 
 1. CIJ rewrites `https://` links in custom-channel message parts into short tracked links, for example `https://eur.tx.ms/…`. This applies to both the **Tap action link** (`actionUrl`) and links in the **body**. Links without a scheme, such as `www.example.com`, are **not** rewritten, and so aren't tracked. Tracking depends on the contact's tracking consent ([Link tracking mechanics](https://learn.microsoft.com/dynamics365/customer-insights/journeys/real-time-marketing-link-tracking-mechanics), [Troubleshoot link tracking](https://learn.microsoft.com/troubleshoot/dynamics-365/customer-insights/journeys/tracking/troubleshoot-link-tracking)).
-2. The tracked link returns an HTML page (HTTP 200) that runs CIJ bot detection and then redirects to the target URL. It is **not** an HTTP 3xx redirect, so a URL fragment (`#…`) added to the tracked link is lost. The target URL gets `?msdynmkt_trackingcontext=<RequestId>` appended (observed, not documented).
+2. The tracked link returns an HTML page (HTTP 200) that runs CIJ bot detection and then redirects to the target URL. It is **not** an HTTP 3xx redirect, so a URL fragment (`#…`) added to the tracked link is lost. The target URL gets `msdynmkt_trackingcontext=<RequestId>` appended, observed both as a query parameter (`?msdynmkt_trackingcontext=…`) and as a fragment (`#msdynmkt_trackingcontext=…`, seen for a bare app URL). Read both. This is observed, not documented; the rule for which one CIJ uses is **unverified**.
 3. CIJ records a click with its **Target URL** and **Link context**, and shows it under *Unique clicks / Total clicks* in the tile's *Delivery and interaction details*. Clicks appear after a delay of tens of minutes.
 
 **Recommended pattern: a tap opens the app, and external links go in the body.**
 - Set the **Tap action link** to your app's own URL (the PWA URL, or an Android App Link / iOS Universal Link). A tap counts as a CIJ click and lands in the app.
-- Use `msdynmkt_trackingcontext` to open the message that was tapped: it equals the inbox item's `requestId`.
+- **Keep the Tap action link recipient-agnostic**, for example `https://<your-app>/`. The same message goes to every recipient, so never put a recipient key or contact ID in it. The app already knows its recipient from device registration (the reference PWA keeps `appKey` and `recipientKey` in `localStorage`; a native app keeps them with its login or installation).
+- Use `msdynmkt_trackingcontext` to open the message that was tapped: it equals the inbox item's `requestId`. Then call `POST /inbox/{id}/click`.
 - Put external links in the body as full `https://` URLs. They're tracked too, and appear as separate click rows with their own Target URL.
 
 **Branching.** After a custom-channel message, the *If/then: previous message gets an interaction* tile offers exactly **Custom Channel Message Delivered**, **Custom Channel Message Link Clicked** and **Custom Channel Message Bounced** (verified in the journey designer). There is no per-link selection: a tap and a body-link click are both *Link Clicked*. The per-link distinction exists only in analytics (Target URL). Which delivery report status, if any, produces *Bounced* is **unverified**. If you need to branch on "opened the app" specifically, raise a custom trigger from your backend instead ([Custom triggers](https://learn.microsoft.com/dynamics365/customer-insights/journeys/real-time-marketing-custom-triggers), [Wait for trigger](https://learn.microsoft.com/dynamics365/customer-insights/journeys/add-action)); this is not implemented.
@@ -161,9 +163,11 @@ self.addEventListener('notificationclick', (event) => {
 });
 
 // app.js: after loading the inbox, open the tapped message.
-const requestId = new URLSearchParams(location.search).get('msdynmkt_trackingcontext');
+const key = 'msdynmkt_trackingcontext';
+const requestId = new URLSearchParams(location.search).get(key)
+  || new URLSearchParams(location.hash.slice(1)).get(key);
 const item = items.find((i) => i.requestId === requestId);   // or i.id === #m
-// highlight it, then POST /inbox/{id}/read
+// POST /inbox/{id}/click (message log), then show it and POST /inbox/{id}/read
 ```
 
 - In the inbox, render body links as `<a>` elements so they're clickable. The reference app's `linkify` matches only `https://` URLs and builds DOM nodes, never HTML strings.

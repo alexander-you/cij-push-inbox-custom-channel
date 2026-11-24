@@ -102,13 +102,20 @@ async function load() {
     li.dataset.id = item.id;
     list.append(li);
   }
-  const hashId = new URLSearchParams(location.hash.slice(1)).get('m');
-  const requestId = qs.get('msdynmkt_trackingcontext');
+  // CIJ appends the tracking context (= RequestId) to the landing URL as a query parameter or as a fragment; accept both.
+  const hash = new URLSearchParams(location.hash.slice(1));
+  const hashId = hash.get('m');
+  const requestId = qs.get('msdynmkt_trackingcontext') || hash.get('msdynmkt_trackingcontext');
   const target = data.items.find((i) => (hashId && i.id === hashId) || (requestId && i.requestId === requestId));
   if (target) {
     focusedId = target.id;
     qs.delete('msdynmkt_trackingcontext');
     history.replaceState(null, '', location.pathname + (qs.toString() ? '?' + qs : ''));
+    // Opened from this message's CIJ tracked link: log the click (the API also marks the item read).
+    if (requestId && target.requestId === requestId) {
+      await fetch(`${api}/inbox/${encodeURIComponent(target.id)}/click?${q}`, { method: 'POST' });
+      return load();
+    }
   }
   const focused = focusedId && [...list.children].find((li) => li.dataset.id === focusedId);
   if (focused) {

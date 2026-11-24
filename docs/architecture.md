@@ -131,4 +131,3 @@ Tags are set by the Inbox API, never by the client ([Notification Hubs installat
 - FCM v1 and APNs installations for native apps.
 - Opened and clicked events raised as CIJ custom triggers ([Custom triggers](https://learn.microsoft.com/dynamics365/customer-insights/journeys/real-time-marketing-custom-triggers)).
 - Authenticated Inbox API (for example Entra External ID or the customer's identity provider) and optional API Management.
-- Per-message log in Dataverse as an elastic table — see [data model](data-model.md#planned-message-log-elastic-table).

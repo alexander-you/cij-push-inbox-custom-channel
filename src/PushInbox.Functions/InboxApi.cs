@@ -13,7 +13,7 @@ namespace PushInbox.Functions;
 /// TEST HARNESS ONLY: the caller identifies itself with appKey + recipientKey and no sign-in.
 /// Production apps must authenticate the end user and derive recipientKey from a verified token (see docs/known-limitations.md).
 /// </summary>
-public sealed class InboxApi(Store store, NotificationHubRest hub, ILogger<InboxApi> log)
+public sealed class InboxApi(Store store, NotificationHubRest hub, MessageLog messageLog, ILogger<InboxApi> log)
 {
     [Function("Config")]
     public IActionResult Config([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "config")] HttpRequest req) =>
@@ -55,15 +55,29 @@ public sealed class InboxApi(Store store, NotificationHubRest hub, ILogger<Inbox
     }
 
     [Function("MarkRead")]
-    public async Task<IActionResult> MarkRead(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "inbox/{id}/read")] HttpRequest req, string id, CancellationToken ct)
+    public Task<IActionResult> MarkRead(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "inbox/{id}/read")] HttpRequest req, string id, CancellationToken ct) =>
+        Interact(req, id, clicked: false, ct);
+
+    /// <summary>The app was opened from this message's tracked link (msdynmkt_trackingcontext = RequestId). Logs Clicked and marks the item read.</summary>
+    [Function("ReportClick")]
+    public Task<IActionResult> ReportClick(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "inbox/{id}/click")] HttpRequest req, string id, CancellationToken ct) =>
+        Interact(req, id, clicked: true, ct);
+
+    private async Task<IActionResult> Interact(HttpRequest req, string id, bool clicked, CancellationToken ct)
     {
         var (appKey, recipientKey) = Identity(req);
         try
         {
-            var item = await store.Inbox.ReadItemAsync<InboxItem>(id, new PartitionKey(recipientKey), cancellationToken: ct);
-            if (item.Resource.AppKey != appKey) return new NotFoundResult();
-            await store.Inbox.PatchItemAsync<InboxItem>(id, new PartitionKey(recipientKey), new[] { PatchOperation.Set("/readOn", DateTimeOffset.UtcNow) }, cancellationToken: ct);
+            var item = (await store.Inbox.ReadItemAsync<InboxItem>(id, new PartitionKey(recipientKey), cancellationToken: ct)).Resource;
+            if (item.AppKey != appKey) return new NotFoundResult();
+            if (clicked) await messageLog.EmitAsync(Event(item, LogEventType.Clicked, Guid.NewGuid()));
+            if (item.ReadOn == null)
+            {
+                await store.Inbox.PatchItemAsync<InboxItem>(id, new PartitionKey(recipientKey), new[] { PatchOperation.Set("/readOn", DateTimeOffset.UtcNow) }, cancellationToken: ct);
+                await messageLog.EmitAsync(Event(item, LogEventType.Read, LogEvent.OnceId(item.MessageId, LogEventType.Read)));
+            }
             return new NoContentResult();
         }
         catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
@@ -71,6 +85,19 @@ public sealed class InboxApi(Store store, NotificationHubRest hub, ILogger<Inbox
             return new NotFoundResult();
         }
     }
+
+    private static LogEvent Event(InboxItem item, LogEventType type, Guid eventId) => new()
+    {
+        EventId = eventId,
+        Type = type,
+        MessageId = item.MessageId,
+        RequestId = item.RequestId,
+        RecipientKey = item.RecipientKey,
+        AppKey = item.AppKey,
+        IsTestSend = item.IsTestSend ?? string.IsNullOrEmpty(item.RequestId),
+        CustomerJourneyId = item.CustomerJourneyId,
+        ChannelDefinitionId = item.ChannelDefinitionId == Guid.Empty ? null : item.ChannelDefinitionId,
+    };
 
     [Function("DeleteInboxItem")]
     public async Task<IActionResult> Delete(

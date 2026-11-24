@@ -23,5 +23,9 @@ builder.Services.AddSingleton(sp => new NotificationHubRest(
     sp.GetRequiredService<IHttpClientFactory>().CreateClient("anh"), Setting("NOTIFICATIONHUB_CONNECTION"), Setting("NOTIFICATIONHUB_NAME")));
 builder.Services.AddSingleton(sp => new DataverseClient(
     sp.GetRequiredService<IHttpClientFactory>().CreateClient("dataverse"), Environment.GetEnvironmentVariable("DATAVERSE_URL")));
+// Optional message log (alex_pushmessagelog): disabled when MESSAGE_LOG_QUEUE is not set.
+builder.Services.AddSingleton(sp => new MessageLog(
+    Environment.GetEnvironmentVariable("MESSAGE_LOG_QUEUE") is { Length: > 0 } q ? sp.GetRequiredService<ServiceBusClient>().CreateSender(q) : null,
+    sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<MessageLog>>()));
 
 builder.Build().Run();

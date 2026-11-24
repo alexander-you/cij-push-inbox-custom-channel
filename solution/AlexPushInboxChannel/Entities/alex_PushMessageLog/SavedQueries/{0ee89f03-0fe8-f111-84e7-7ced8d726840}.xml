@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{0ee89f03-0fe8-f111-84e7-7ced8d726840}</savedqueryid>
+    <querytype>8192</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical" output-format="xml-platform">
+        <entity name="alex_pushmessagelog">
+          <attribute name="alex_pushmessagelogid" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="My Push message logs" languagecode="1033" />
+      <LocalizedName description="רשומות יומן הודעות הפוש שלי" languagecode="1037" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="Active Push message logs owned by me" languagecode="1033" />
+      <Description description="רשומות יומן הודעות פוש פעילות בבעלותי" languagecode="1037" />
+    </Descriptions>
+  </savedquery>
+</savedqueries>

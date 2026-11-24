@@ -15,6 +15,7 @@ param budgetStartDate string
 var token = toLower(uniqueString(subscription().id, resourceGroup().id, environmentName))
 var databaseName = 'pushinbox'
 var queueName = 'dispatch'
+var logQueueName = 'messagelog'
 var hubName = 'pushinbox'
 
 // Built-in role definition IDs (https://learn.microsoft.com/azure/role-based-access-control/built-in-roles)
@@ -73,6 +74,12 @@ resource serviceBus 'Microsoft.ServiceBus/namespaces@2022-10-01-preview' = {
   resource queue 'queues' = {
     name: queueName
     properties: { maxDeliveryCount: 5, lockDuration: 'PT1M', deadLetteringOnMessageExpiration: true, defaultMessageTimeToLive: 'P1D' }
+  }
+  // Message-log events (alex_pushmessagelog). Separate from dispatch so a Dataverse outage never delays a send;
+  // a 7-day TTL and 10 deliveries ride out a long outage before events are dead-lettered.
+  resource logQueue 'queues' = {
+    name: logQueueName
+    properties: { maxDeliveryCount: 10, lockDuration: 'PT1M', deadLetteringOnMessageExpiration: true, defaultMessageTimeToLive: 'P7D' }
   }
 }
 
@@ -236,6 +243,9 @@ resource func 'Microsoft.Web/sites@2024-04-01' = {
         { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.properties.ConnectionString }
         { name: 'ServiceBus__fullyQualifiedNamespace', value: '${serviceBus.name}.servicebus.windows.net' }
         { name: 'DISPATCH_QUEUE', value: queueName }
+        { name: 'MESSAGE_LOG_QUEUE', value: logQueueName }
+        { name: 'MESSAGE_LOG_TTL_DAYS', value: '180' }
+        { name: 'MESSAGE_LOG_TEST_TTL_DAYS', value: '7' }
         { name: 'COSMOS_ENDPOINT', value: cosmos.properties.documentEndpoint }
         { name: 'COSMOS_DATABASE', value: databaseName }
         { name: 'NOTIFICATIONHUB_NAME', value: hubName }

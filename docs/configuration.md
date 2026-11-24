@@ -45,7 +45,7 @@ Marketers fill these in the built-in message editor of the journey tile. ([Messa
 |---|---|
 | CIJ service | Read on `alex_pushchannelinstance`, granted by `deploy/post-import.sh` ([installation](installation.md#3-grant-cij-read-access-to-the-channel-configuration)). ([Channel instance account and Extensible role](https://learn.microsoft.com/dynamics365/customer-insights/journeys/real-time-marketing-define-channel-instance-account)) |
 | Admins who configure channels | Create, read, write and delete on `alex_pushchannelinstance`. Until the solution's own roles ship, use System Administrator or System Customizer. |
-| Azure backend | An application user for the Function App's managed identity, with Basic User, to run the `alex_PushDeliveryReport` custom API. Created by `deploy/connect-azure.sh`. ([Application users](https://learn.microsoft.com/power-platform/admin/manage-application-users)) |
+| Azure backend | An application user for the Function App's managed identity, with Basic User (to run the `alex_PushDeliveryReport` custom API) and **Push Inbox Log Writer** (to write the message log). Created by `deploy/connect-azure.sh`. ([Application users](https://learn.microsoft.com/power-platform/admin/manage-application-users)) |
 
 ## Azure keys and secrets
 

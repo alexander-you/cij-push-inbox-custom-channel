@@ -3,7 +3,8 @@
 #   1. Sets the value of environment variable alex_ChannelApiBaseUrl to the Function App's /api address.
 #      https://learn.microsoft.com/power-apps/maker/data-platform/environmentvariables
 #   2. Creates (if missing) a Dataverse application user for the Function App's managed identity and gives it the
-#      Basic User role, so the dispatcher can call the alex_PushDeliveryReport custom API.
+#      Basic User role (to call the alex_PushDeliveryReport custom API) and the Push Inbox Log Writer role
+#      (to write the alex_pushmessagelog message log).
 #      https://learn.microsoft.com/power-platform/admin/manage-application-users
 #   3. Optional: writes the function key to alex_channelapikey on one channel instance (test environments only).
 # Safe to run more than once. Run it from the repository root after `azd up`.
@@ -45,9 +46,16 @@ if [[ -z "$USER_ID" ]]; then
   send POST systemusers "{\"applicationid\":\"$APP_ID\",\"businessunitid@odata.bind\":\"/businessunits($BU_ID)\"}"
   USER_ID="$(get "systemusers?\$select=systemuserid&\$filter=applicationid%20eq%20$APP_ID" | first systemuserid)"
 fi
-ROLE_ID="$(get "roles?\$select=roleid&\$filter=name%20eq%20'Basic%20User'%20and%20_businessunitid_value%20eq%20$BU_ID" | first roleid)"
-send POST "systemusers($USER_ID)/systemuserroles_association/\$ref" "{\"@odata.id\":\"$API/roles($ROLE_ID)\"}"
-echo "Application user $USER_ID (managed identity app $APP_ID) has Basic User"
+assign() {
+  local name="$1" role has
+  role="$(get "roles?\$select=roleid&\$filter=name%20eq%20'${name// /%20}'%20and%20_businessunitid_value%20eq%20$BU_ID" | first roleid)"
+  [[ -n "$role" ]] || { echo "Role '$name' not found. Import the solution first." >&2; exit 1; }
+  has="$(get "systemusers($USER_ID)/systemuserroles_association?\$select=roleid&\$filter=roleid%20eq%20$role" | first roleid)"
+  [[ -n "$has" ]] || send POST "systemusers($USER_ID)/systemuserroles_association/\$ref" "{\"@odata.id\":\"$API/roles($role)\"}"
+}
+assign "Basic User"
+assign "Push Inbox Log Writer"
+echo "Application user $USER_ID (managed identity app $APP_ID) has Basic User and Push Inbox Log Writer"
 
 # 3. Function key on a channel instance (test environments only; see docs/security.md).
 if [[ -n "$INSTANCE_ID" ]]; then

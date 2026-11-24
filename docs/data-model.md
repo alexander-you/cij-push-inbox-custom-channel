@@ -217,6 +217,8 @@ Both are unbound actions:
 | **Cxp Channel Definitions Services User** (Microsoft-owned) | Same script, best effort. Skipped with a warning where the role is locked (`0x8004023b`) ([Custom channel instance](https://learn.microsoft.com/dynamics365/customer-insights/journeys/real-time-marketing-define-custom-channel-instance), [Managed properties](https://learn.microsoft.com/power-platform/alm/managed-properties-alm)). | Read on `alex_pushchannelinstance` |
 | `Push Inbox Channel Integration` (ours, planned) | In the solution | Assigned to the Azure application user ([Application users](https://learn.microsoft.com/power-platform/admin/manage-application-users)). Read on `alex_pushchannelinstance`, plus the minimum base privileges an app user needs to execute the delivery-report API. |
 | `Push Inbox Channel Admin` (ours, planned) | In the solution | Create, read, write, and delete on `alex_pushchannelinstance` for CIJ admins configuring the channel. |
+| **Push Inbox Log Writer** (ours) | In the solution | Assigned to the Azure backend's application user. Create, read, write and append on `alex_pushmessagelog` (user level); append-to on contact (organization level), needed to set the contact lookup. No delete: TTL removes rows. Plus the default privileges Dataverse adds to every new role. |
+| **Push Inbox Log Reader** (ours) | In the solution | For marketers and admins. Read on `alex_pushmessagelog` (organization level), plus the default privileges Dataverse adds to every new role. |
 
 ### 3.7 Field descriptions (written into solution metadata)
 
@@ -416,108 +418,116 @@ erDiagram
 15. Enable container TTL in Cosmos DB (`defaultTtl = -1`) so per-item `ttl` works ([Cosmos DB time to live](https://learn.microsoft.com/azure/cosmos-db/how-to-time-to-live)).
 16. Build only from Git with `pac solution pack`; CI structure tests run first ([SolutionPackager](https://learn.microsoft.com/power-platform/alm/solution-packager-tool)).
 
-## Planned message log (elastic table)
+## 8. Message log (elastic table `alex_pushmessagelog`)
 
-> **Status: Planned, required improvement. Not implemented.** Nothing in this section exists in the solution or in the backend yet. It is the proposed design; anything marked **Unverified** must be confirmed before you build it. Where the log appears in the UI (form, view, CIJ timeline or a model-driven app) is **not decided**.
+> **Status: implemented and verified in a development environment** (real CIJ journey sends, test sends, and rejected sends). The log is the solution's **reference record**. It is deliberately a plain, append-only event log; what you build on top of it (summary tables, reports, Fabric) is your choice. See [8.8 Options for partners and implementers](#88-options-for-partners-and-implementers).
 
-**Purpose:** one Dataverse row per message event (accepted, dispatched, delivery reported, opened, clicked), so admins can audit and report what was sent, to whom, and with what outcome. CIJ keeps its own delivery analytics; this log adds the channel-side detail CIJ doesn't hold, such as the push service outcome, the delivery mode, and the reason a message wasn't delivered. Message content (title, body, image) is **not** stored; the inbox item in Cosmos DB holds it until it expires.
+**Purpose:** one Dataverse row per message event, so admins can audit what was sent, to whom, and with what outcome. It adds the channel-side detail that CIJ analytics don't hold: rejections and their reason, the delivery mode, the inbox **Read** event, and app-side landings from a tracked link. Message content (title, body, image, URLs) is **never** stored.
 
-**Why elastic:** the log is append-heavy, high-volume and expiring. Learn recommends elastic tables for large volumes with automatic removal after a time period, and standard tables when you need strong consistency, transactions across tables or during plug-in execution, or complex joins ([Elastic tables](https://learn.microsoft.com/power-apps/maker/data-platform/create-edit-elastic-tables), [Elastic tables for developers](https://learn.microsoft.com/power-apps/developer/data-platform/elastic-tables)). The log needs none of those.
+**Why elastic:** the log is append-heavy, high-volume and expiring. Learn recommends elastic tables for large volumes with automatic removal after a time period, and standard tables when you need strong consistency, transactions or complex joins ([Elastic tables](https://learn.microsoft.com/power-apps/maker/data-platform/create-edit-elastic-tables), [Elastic tables for developers](https://learn.microsoft.com/power-apps/developer/data-platform/elastic-tables)). The log needs none of those.
 
-### Table
+### 8.1 Table
 
 | Property | Value |
 |---|---|
-| Logical name | `alex_pushmessagelog` |
+| Logical name | `alex_pushmessagelog` (entity set `alex_pushmessagelogs`) |
 | Display name (1033 / 1037) | Push message log / יומן הודעות פוש |
 | Table type | Elastic |
-| Ownership | Organization. The rows are written by the backend's application user, not by marketers. |
-| Description (1033) | One row per push message event: accepted, dispatched, delivery reported, opened or clicked. Rows are deleted automatically after the retention period. |
-| Description (1037) | שורה אחת לכל אירוע של הודעת פוש: התקבלה, נשלחה, דווח מסירה, נפתחה או נלחצה. השורות נמחקות אוטומטית בתום תקופת השמירה. |
+| Ownership | User-owned. Rows are owned by the backend's application user; marketers read them through the **Push Inbox Log Reader** role. |
+| Change tracking | Enabled, so the table can be selected in Link to Fabric / Azure Synapse Link ([Link to Fabric](https://learn.microsoft.com/power-apps/maker/data-platform/fabric-link-to-data-platform)). |
+| Forms and views | Main form, quick-create form and the default views, labelled in English and Hebrew. No charts: elastic tables don't support them. |
 
-### Columns
+### 8.2 Columns
 
-All columns follow the `alex_` prefix and the description rule in [3.7](#37-field-descriptions-written-into-solution-metadata).
+Every column has English and Hebrew display names and descriptions in the solution (`Entities/alex_PushMessageLog/Entity.xml`).
 
-| Logical name | Type (length) | Description (1033) | Description (1037) |
+| Logical name | Type | Content |
+|---|---|---|
+| `alex_pushmessagelogid` | Primary key | Event ID. Deterministic for one-time events (see 8.4), random for repeatable ones. |
+| `alex_name` | Text (100) | Summary, for example `Delivered – 3f2a8c1d`. |
+| `partitionid` | System | = `alex_messageid`. All events of one message are in one logical partition. |
+| `ttlinseconds` | System | Retention; Dataverse deletes the row when it expires. |
+| `alex_eventtype` | Choice | See 8.3. |
+| `alex_messageid` | Text | Message ID the Channel API returned to CIJ (also the inbox item ID). |
+| `alex_requestid` | Text (100) | CIJ `RequestId`. Empty for test sends. |
+| `alex_idempotencyid` | Text (100) | CIJ `IdempotencyId`, or a generated `gen-…` value when CIJ sends none. |
+| `alex_recipientlogid` | Text | Pseudonymous recipient ID: first 12 hex characters of SHA-256 of the recipient key. Same value as in Application Insights. The raw recipient key is not stored. |
+| `alex_ContactId` | Lookup → contact | Resolved when the recipient key is `contact_<guid>`. Empty for test sends and leads. |
+| `alex_appkey` | Text (100) | App key of the channel instance. |
+| `alex_deliverymode` | Choice | Alert + Inbox / Inbox only / Alert only. |
+| `alex_istestsend` | Yes/No | CIJ test send. |
+| `alex_pnssuccesscount`, `alex_pnsfailurecount` | Whole number | Devices the push service accepted / rejected. Filled on Dispatched rows **of test sends only**: Notification Hubs returns per-device outcomes only in test mode on the Free tier ([Notification Hubs FAQ](https://learn.microsoft.com/azure/notification-hubs/notification-hubs-push-notification-faq)). |
+| `alex_detail` | Text (500) | Reason or error code, for example `NoDevice`, `EmptyMessage`, `not reported to CIJ (test send)`. No content or personal data. |
+| `alex_eventon` | Date and time (UTC) | When the event happened. |
+| `alex_customerjourneyid` | Text (100) | CIJ journey ID, when present. |
+| `alex_channeldefinitionid` | Text | CIJ channel definition ID. |
+
+### 8.3 Event types and who writes them
+
+| Event (value) | Written by | When | Row ID |
 |---|---|---|---|
-| `alex_pushmessagelogid` | Primary key (GUID) | Unique ID of the log row. Derived from the message ID and event type, so a retried write updates the same row. | מזהה ייחודי של שורת היומן. נגזר ממזהה ההודעה ומסוג האירוע, כך שכתיבה חוזרת מעדכנת את אותה שורה. |
-| `alex_name` | Text (100), primary name | Short summary, for example "Dispatched – 3f2a…". | תיאור קצר, לדוגמה "נשלחה – 3f2a…". |
-| `partitionid` | Text, system column | Set to `alex_messageid`. Keeps all events of one message together. | מוגדר לערך מזהה ההודעה, כך שכל האירועים של הודעה אחת נשמרים יחד. |
-| `ttlinseconds` | Whole number, system column | Seconds until Dataverse deletes the row. | מספר השניות עד שהשורה תימחק אוטומטית. |
-| `alex_messageid` | Text (36) | Message ID returned by the Channel API to CIJ. | מזהה ההודעה שה-Channel API החזיר ל-CIJ. |
-| `alex_requestid` | Text (100) | CIJ request ID. Empty for test sends. | מזהה הבקשה של CIJ. ריק בשליחת ניסיון. |
-| `alex_idempotencyid` | Text (100) | Idempotency ID used for de-duplication: CIJ's value, or the generated one when CIJ sends an empty value. | מזהה מניעת כפילויות: הערך מ-CIJ, או ערך שנוצר כאשר CIJ שולח ערך ריק. |
-| `alex_eventtype` | Choice | What happened: Accepted (1), Rejected (2), Dispatched (3), Delivery reported (4), Opened (5), Clicked (6). | מה קרה: התקבלה (1), נדחתה (2), נשלחה (3), דווח מסירה (4), נפתחה (5), נלחצה (6). |
-| `alex_deliverystatus` | Choice | Status reported to CIJ: Sent (1), Not sent (2), Delivered (3), Not delivered (4). | הסטטוס שדווח ל-CIJ: נשלחה (1), לא נשלחה (2), נמסרה (3), לא נמסרה (4). |
-| `alex_deliverymode` | Choice | Alert + Inbox (1), Inbox only (2), Alert only (3). Same values as the message part. | התראה + תיבת דואר (1), תיבת דואר בלבד (2), התראה בלבד (3). אותם ערכים כמו בחלק ההודעה. |
-| `alex_recipientkey` | Text (100), column-secured | Normalized recipient key (usually a phone number). Personal data. | מפתח הנמען המנורמל (בדרך כלל מספר טלפון). מידע אישי. |
-| `alex_appkey` | Text (100) | App key of the channel instance. | מפתח האפליקציה של מופע הערוץ. |
-| `alex_istestsend` | Yes/No | Whether this was a CIJ test send. | האם זו שליחת ניסיון מ-CIJ. |
-| `alex_pnssuccesscount` | Whole number | Devices the push service accepted. Dispatcher rows only. | מספר המכשירים ששירות הפוש קיבל. רק בשורות שליחה. |
-| `alex_pnsfailurecount` | Whole number | Devices the push service rejected. Dispatcher rows only. | מספר המכשירים ששירות הפוש דחה. רק בשורות שליחה. |
-| `alex_detail` | Text (500) | Reason or error detail, for example "No subscribed device". No personal data. | סיבה או פירוט שגיאה, לדוגמה "אין מכשיר רשום". ללא מידע אישי. |
-| `alex_eventon` | Date and time (UTC) | When the event happened. | מועד האירוע. |
-| `alex_customerjourneyid` | Text (100) | CIJ journey ID, when CIJ sends one. | מזהה המסע ב-CIJ, אם נשלח. |
-| `alex_channeldefinitionid` | Text (36) | CIJ channel definition ID. | מזהה הגדרת הערוץ ב-CIJ. |
-| `alex_pushchannelinstanceid` | Lookup → `alex_pushchannelinstance` | Channel instance that sent the message. | מופע הערוץ ששלח את ההודעה. |
-| `alex_contactid` | Lookup → `contact` | Contact the message was sent to, when it can be resolved. | איש הקשר שאליו נשלחה ההודעה, אם ניתן לזהות אותו. |
+| Accepted (626210000) | Channel API | Message queued; CIJ receives Sent. | Once per message |
+| Rejected (626210001) | Channel API | Validation failed (`MissingAppKey`, `EmptyMessage`, `InvalidDeliveryMode`, `MissingRecipient`); CIJ receives NotSent. | Random (no message ID exists yet) |
+| Dispatched (626210002) | Dispatcher | Inbox item stored and/or push handed to Notification Hubs in this delivery. Not written again when a redelivered queue message skips steps that are already done. | Once per message |
+| Delivered (626210003) | Dispatcher | The Delivered report was sent to CIJ, or skipped for a test send (noted in Detail). | Once per message |
+| Not delivered (626210004) | Dispatcher | The NotDelivered report was sent or skipped; reason in Detail. | Once per message |
+| Read (626210005) | Inbox API (`POST inbox/{id}/read`) | First time the recipient opens the message in the app inbox. | Once per message |
+| Clicked (626210006) | Inbox API (`POST inbox/{id}/click`) | Every time the app opens from a tracked link of this message (see [developer-integration](developer-integration.md#3-how-to-report-clicks)). Like CIJ "Total clicks"; count distinct `alex_messageid` for unique clicks. | Random (one row per landing) |
 
-### Keys and partitioning
+**Not in the log:** *Blocked* (notification permission revoked). It needs device-level reporting that is not implemented; see [known-limitations](known-limitations.md).
 
-- **`partitionid` = `alex_messageid`** (a GUID).
-  - All events of one message share a logical partition, so reading a message's history is a single-partition query.
-  - Learn recommends a value that spreads data evenly and is at most 1,024 bytes.
-  - The value must not contain `/ < > * % & : \ ? +`. This rules out the recipient key, which can contain `:` and starts from `+972…` numbers before normalization ([Elastic tables for developers](https://learn.microsoft.com/power-apps/developer/data-platform/elastic-tables)).
-- **No custom alternate key.** Alternate keys are not supported on elastic tables ([Elastic tables](https://learn.microsoft.com/power-apps/maker/data-platform/create-edit-elastic-tables)).
-  - Idempotency comes from the deterministic primary key (a name-based GUID from `messageId` + `eventtype`) used with Upsert ([Use elastic tables using code](https://learn.microsoft.com/power-apps/developer/data-platform/use-elastic-tables)).
-  - Use the system key `keyfornosqlentitywithpkpartitionid` (primary key + `partitionid`) to address a row ([Create elastic tables with code](https://learn.microsoft.com/power-apps/developer/data-platform/create-elastic-tables)).
-- **Cross-message queries** (for example "all messages to one recipient") are cross-partition. That is acceptable for admin reporting; it isn't designed for high-frequency reads.
+### 8.4 Write path
 
-### Retention (TTL)
+```mermaid
+flowchart LR
+  CA[Channel API] -->|event| Q[(Service Bus<br/>messagelog)]
+  DI[Dispatcher] -->|event| Q
+  IA[Inbox API<br/>read / click] -->|event| Q
+  Q --> LW[LogWriter<br/>Function]
+  LW -->|Upsert, managed identity| DV[(Dataverse<br/>alex_pushmessagelog)]
+```
 
-- Every row sets `ttlinseconds`. Dataverse deletes the row when it expires; without a value the row is kept indefinitely ([Elastic tables for developers](https://learn.microsoft.com/power-apps/developer/data-platform/elastic-tables)).
-- **Proposed values:**
-  - 180 days (15,552,000 s), matching the inbox maximum;
-  - 7 days (604,800 s) for test sends.
-  - Make it configurable through a new environment variable.
-- **Synapse Link:** rows exported to Azure Synapse Link before they expire aren't deleted from the data lake (same page). If you export the log, apply retention there as well.
+- **Never blocks a send.** Producers put a small event on a separate `messagelog` queue (best effort; a failure is only logged). The `LogWriter` Function writes to Dataverse. A Dataverse outage or throttling delays the log, never the push, the inbox or the CIJ report.
+- **Idempotent.** The row is upserted (`PATCH alex_pushmessagelogs(alex_pushmessagelogid=…,partitionid='…')`). One-time events use a name-based GUID from `messageId + eventType`, so a redelivered event updates the same row ([Use elastic tables with code](https://learn.microsoft.com/power-apps/developer/data-platform/use-elastic-tables)). Elastic tables don't support alternate keys ([Elastic tables](https://learn.microsoft.com/power-apps/maker/data-platform/create-edit-elastic-tables)).
+- **Retries.** Queue settings: max delivery count 10, lock 1 minute, message TTL 7 days, dead-letter on expiration. Dataverse 429/5xx throw and are retried by Service Bus ([API limits](https://learn.microsoft.com/power-apps/developer/data-platform/api-limits)).
+- **Identity.** The Function App's managed identity is a Dataverse application user ([Application users](https://learn.microsoft.com/power-platform/admin/manage-application-users)) with the **Push Inbox Log Writer** role.
+- **Turning it off.** Remove the `MESSAGE_LOG_QUEUE` app setting; producers then skip the log.
 
-### Relationships
+### 8.5 Retention (TTL)
 
-Both lookups are N:1 from the log to a standard table. Learn requires `Cascade.None` on relationships with elastic tables and doesn't support N:N ([Create elastic tables with code](https://learn.microsoft.com/power-apps/developer/data-platform/create-elastic-tables)). Deleting a contact or a channel instance therefore doesn't delete its log rows; TTL removes them.
+| App setting | Default | Applies to |
+|---|---|---|
+| `MESSAGE_LOG_TTL_DAYS` | 180 (15,552,000 s) | Real sends |
+| `MESSAGE_LOG_TEST_TTL_DAYS` | 7 (604,800 s) | Test sends and rejected sends without a CIJ request |
 
-- **Channel instance:** resolved the same way the outbound plug-in already does, by `msdyn_channeldefinitionid` + `msdyn_contactpoint` (= CIJ `From`) → `msdyn_extendedentityid`.
-- **Contact:** the outbound payload model used by this solution has no contact ID. **Unverified** whether CIJ sends one in a field the plug-in doesn't read yet; confirm from a captured payload. Until then, `alex_contactid` stays empty, or is resolved by matching the recipient key to a contact phone or email column. That match is ambiguous and is an open decision.
+TTL is counted from the row's last modification ([Elastic tables](https://learn.microsoft.com/power-apps/maker/data-platform/create-edit-elastic-tables)). Rows already exported to Synapse Link or Fabric are not deleted there; apply retention in the destination as well ([Elastic tables for developers](https://learn.microsoft.com/power-apps/developer/data-platform/elastic-tables)).
 
-### Who writes each row
+### 8.6 Relationships and security
 
-All writes come from the Azure backend through its managed-identity application user, after the response to CIJ. A slow or failed log write therefore never delays or fails the send. The plug-in doesn't write to the log. Learn recommends standard tables when you need transactional capability during plug-in execution (see *Why elastic* above), and keeping log writes out of the plug-in keeps them out of the CIJ send path.
+- `alex_ContactId` is N:1 to contact with `Cascade.None`, the only option for elastic tables ([Create elastic tables with code](https://learn.microsoft.com/power-apps/developer/data-platform/create-elastic-tables)). Deleting a contact doesn't delete its log rows; TTL does. For a data-subject erasure request, delete the rows by `alex_ContactId` and by `alex_recipientlogid`.
+- No channel-instance lookup: `alex_appkey` + `alex_channeldefinitionid` identify the instance.
+- Roles: see [3.6](#36-security-roles).
 
-| Event | Writer | When | `alex_deliverystatus` |
-|---|---|---|---|
-| Accepted | Channel API | After the message is queued (202) | Sent |
-| Rejected | Channel API | Validation failure (4xx) | Not sent |
-| Dispatched | Dispatcher | After the inbox write and the Notification Hubs send; includes the push counts | — |
-| Delivery reported | Dispatcher | After `alex_PushDeliveryReport` succeeds, or is skipped because `RequestId` is empty (test send, noted in `alex_detail`) | Delivered / Not delivered |
-| Opened | Inbox API | Planned: when the app reports an open. The open endpoint is not implemented yet. | — |
-| Clicked | — | Not logged here: CIJ link tracking records clicks itself ([developer-integration](developer-integration.md#3-how-to-report-clicks)). | — |
+### 8.7 Elastic limitations that matter here
 
-**Required to build it:**
-- Add a solution security role with create, write and read on `alex_pushmessagelog`, and assign it to the backend's application user (today it has Basic User only).
-- Add field-level security for `alex_recipientkey`; elastic tables support it ([Elastic tables](https://learn.microsoft.com/power-apps/maker/data-platform/create-edit-elastic-tables)).
+From [Elastic tables](https://learn.microsoft.com/power-apps/maker/data-platform/create-edit-elastic-tables):
 
-### Elastic limitations that matter here
-
-From [Elastic tables](https://learn.microsoft.com/power-apps/maker/data-platform/create-edit-elastic-tables) and [Elastic tables for developers](https://learn.microsoft.com/power-apps/developer/data-platform/elastic-tables):
-
-| Limitation | Effect on this log |
+| Limitation | Effect |
 |---|---|
-| No charts, no business rules, no business process flows | Reporting needs views, Power BI or exported data. Charts on the log are not possible. |
-| No alternate keys, no duplicate detection | Idempotency through a deterministic primary key and Upsert (above). |
-| No calculated or rollup columns; no aggregates such as distinct + order by on another column, or group by + order by together | Counts per journey or per status must be computed outside the table. |
-| Cascade operations not supported; no N:N | Lookups are informational only; TTL handles cleanup. |
-| No table sharing, access teams or queues | Access is through the security role only. |
-| Strong consistency only within a logical session (session token) | A row written by the backend can appear slightly later to other readers. Acceptable for a log. |
-| No import or export of table data | Bulk export goes through Synapse Link or the API. |
-| Elastic tables count against Dataverse **log** capacity | Plan capacity with your admin. |
+| No charts, business rules or rollup columns; limited aggregates (for example no group by + order by) | Counts per journey or status are computed outside the table. |
+| **The Power BI Dataverse connector doesn't support elastic tables** | Report through Fabric / Synapse Link, or through the Web API. |
+| No filters on related tables | Filter on the log's own columns (`alex_ContactId`, `alex_customerjourneyid`), not on contact fields. |
+| No alternate keys, duplicate detection, table sharing or cascade | Handled by deterministic IDs, the roles and TTL. |
+| No table-data import/export | Bulk export goes through Synapse Link / Fabric or the API. |
+| Counts against Dataverse **log** capacity | Plan with your admin ([Capacity](https://learn.microsoft.com/power-platform/admin/capacity-storage)). Roughly 3–4 rows per delivered message, plus Read and Clicked rows. |
+
+### 8.8 Options for partners and implementers
+
+The log is the reference record. Pick what fits the customer:
+
+| Option | How | Notes |
+|---|---|---|
+| **A. Use the log as is** | Model-driven views on `alex_pushmessagelog`, filtered by contact, journey or event type. Add the table to the customer's app and grant **Push Inbox Log Reader**. | Zero build. No charts. |
+| **B. Summary table (one row per message × contact)** | A standard table (for example Sent / Delivered / Read / Clicked timestamps) maintained from the log by a Function on the same queue or by a Power Automate flow on log row creation. | Standard tables support charts, rollups, alternate keys and the Power BI connector. Mind API limits; use `UpsertMultiple` for volume ([Bulk operations](https://learn.microsoft.com/power-apps/developer/data-platform/bulk-operations), [API limits](https://learn.microsoft.com/power-apps/developer/data-platform/api-limits)). Uses database capacity. |
+| **C. Fabric / Synapse Link + Power BI** | Add `alex_pushmessagelog` to Link to Fabric or Azure Synapse Link ([Link to Fabric](https://learn.microsoft.com/power-apps/maker/data-platform/fabric-link-to-data-platform)); report in Power BI over the lakehouse. | Keeps history beyond TTL. Change tracking is already enabled on the table. Elastic-table export through these links: **Unverified in this solution**; test before you rely on it. |
+| **D. CIJ's own interaction data** | For Sent, Delivered, Bounced and Link Clicked, CIJ already records custom-channel interactions (`CustomSent`, `CustomDelivered`, `CustomBounced`, `CustomLinkClicked`, …) ([CDM: Customer Insights – Journeys](https://learn.microsoft.com/common-data-model/schema/core/applicationcommon/foundationcommon/crmcommon/solutions/customerinsightsjourneys/overview), [CustomLinkClicked](https://learn.microsoft.com/common-data-model/schema/core/applicationcommon/foundationcommon/crmcommon/solutions/customerinsightsjourneys/customlinkclicked)). Access them through CIJ Fabric integration ([Fabric integration](https://learn.microsoft.com/dynamics365/customer-insights/journeys/fabric-integration)) or Customer Insights – Data ([Journeys interaction data](https://learn.microsoft.com/dynamics365/customer-insights/data/journeys-interaction-data-segments-measures)). | System of record for journey analytics. Has no Read event and no rejection reasons; join with the log on `RequestId` / message ID for those. |

@@ -24,7 +24,8 @@ flowchart LR
 | Dataverse solution `AlexPushInboxChannel` 1.0.0.0: channel definition, 7 message parts, config table and form, custom APIs, plug-ins, environment variable, English and Hebrew labels | Available |
 | Azure backend (`azd up`): Channel API with idempotency, Service Bus, Dispatcher, Cosmos DB inbox, Notification Hubs Web Push, delivery reports to CIJ | Available (preview) |
 | Reference PWA inbox (Static Web Apps) and Inbox API | Available as a **test harness**: the Inbox API is anonymous. See [known limitations](docs/known-limitations.md). |
-| End-user authentication, interaction triggers, Android/iOS device registration, Dataverse message log | Planned (see roadmap) |
+| Dataverse message log `alex_pushmessagelog` (elastic table, async writer, Log Writer / Log Reader roles) | Available (preview). See [data model](docs/data-model.md#8-message-log-elastic-table-alex_pushmessagelog). |
+| End-user authentication, interaction triggers, Android/iOS device registration | Planned (see roadmap) |
 
 ## Documentation
 
@@ -58,7 +59,7 @@ tests/solution/                  Solution structure and label check
 ## Roadmap
 
 1. **Done (preview):** Azure core and Web Push. Channel API with idempotency, Service Bus, Dispatcher, Cosmos DB inbox, Notification Hubs, delivery reports to CIJ, reference PWA, `azd up`.
-2. **Required – Dataverse message log:** one row per message and status change in an elastic table, for audit and reporting. The schema is in [data-model.md](docs/data-model.md#planned-message-log-elastic-table). Where it appears in the UI is not decided yet.
+2. **Done – Dataverse message log:** one row per message event in an elastic table (`alex_pushmessagelog`), including inbox Read and app-side Clicked, for audit and reporting. See [data-model.md](docs/data-model.md#8-message-log-elastic-table-alex_pushmessagelog), including the options for building summaries and reports on top of it.
 3. **Security:** authenticated Inbox API (end-user identity instead of `recipientKey` in the query string), Power Platform managed identity for the plug-in instead of the function key, solution security roles.
 4. **Interactions:** clicks are done through CIJ link tracking. Still open: an *opened* custom trigger if journeys must branch on app opens; `replaceKey`.
 5. **Images:** pick the image from the CIJ asset library instead of typing a URL.

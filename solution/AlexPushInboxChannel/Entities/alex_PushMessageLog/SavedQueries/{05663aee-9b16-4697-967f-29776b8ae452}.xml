@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<savedqueries xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <savedquery>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>0</CanBeDeleted>
+    <isquickfindquery>0</isquickfindquery>
+    <isprivate>0</isprivate>
+    <isdefault>1</isdefault>
+    <savedqueryid>{05663aee-9b16-4697-967f-29776b8ae452}</savedqueryid>
+    <layoutxml>
+      <grid name="alex_pushmessagelogs" jump="alex_name" select="1" icon="1" preview="0">
+        <row name="alex_pushmessagelog" id="alex_pushmessagelogid">
+          <cell name="alex_name" width="300" />
+        </row>
+      </grid>
+    </layoutxml>
+    <querytype>64</querytype>
+    <fetchxml>
+      <fetch version="1.0" mapping="logical">
+        <entity name="alex_pushmessagelog">
+          <attribute name="alex_pushmessagelogid" />
+          <attribute name="alex_name" />
+        </entity>
+      </fetch>
+    </fetchxml>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <LocalizedNames>
+      <LocalizedName description="Push message log Lookup View" languagecode="1033" />
+      <LocalizedName description="תצוגת בדיקת מידע של יומן הודעות פוש" languagecode="1037" />
+    </LocalizedNames>
+  </savedquery>
+</savedqueries>

@@ -1,0 +1,120 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<forms xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <systemform>
+    <formid>{4188978f-3394-4569-a884-bfef665cec95}</formid>
+    <IntroducedVersion>1.0.0.0</IntroducedVersion>
+    <FormPresentation>1</FormPresentation>
+    <FormActivationState>1</FormActivationState>
+    <form>
+      <tabs>
+        <tab name="general" verticallayout="true" id="{3bccbff0-a66e-4444-9705-83c5f98b7cb9}" IsUserDefined="0">
+          <labels>
+            <label description="" languagecode="1037" />
+          </labels>
+          <columns>
+            <column width="25%">
+              <sections>
+                <section name="ColorStrip" showlabel="false" showbar="false" columns="1" IsUserDefined="0" id="{59aa0af4-2c5f-463b-ac59-c312895feb0e}">
+                  <labels>
+                    <label description="ColorStrip" languagecode="1033" />
+                  </labels>
+                </section>
+              </sections>
+            </column>
+            <column width="75%">
+              <sections>
+                <section name="CardHeader" showlabel="false" showbar="false" columns="111" id="{56e3ba1e-9ebb-405b-b291-2f9a34294ce9}" IsUserDefined="0">
+                  <labels>
+                    <label description="Header" languagecode="1033" />
+                    <label description="כותרת עליונה" languagecode="1037" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{21ad6399-c921-48d3-a8ef-7aeaf1821cec}" showlabel="true" locklevel="0">
+                        <labels>
+                          <label description="" languagecode="1037" />
+                        </labels>
+                        <control id="statuscode" classid="{5D68B988-0661-4db2-BC3E-17598AD3BE6C}" datafieldname="statuscode" disabled="false" />
+                      </cell>
+                      <cell id="{e433f725-66cc-473b-a9e1-34063d952156}" showlabel="true" locklevel="0">
+                        <labels>
+                          <label description="" languagecode="1037" />
+                        </labels>
+                      </cell>
+                      <cell id="{ecd5e53d-90e6-4bf2-8062-b3f308734eb7}" showlabel="true" locklevel="0">
+                        <labels>
+                          <label description="" languagecode="1037" />
+                        </labels>
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+                <section name="CardDetails" showlabel="false" showbar="false" columns="1" id="{e006c652-c66e-4a55-a395-7dd098bfb07d}" IsUserDefined="0">
+                  <labels>
+                    <label description="Details" languagecode="1033" />
+                    <label description="פרטים" languagecode="1037" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{c0abd05f-06e4-4cf3-90c0-0d81c38979c5}" showlabel="true" locklevel="0">
+                        <labels>
+                          <label description="Name" languagecode="1033" />
+                          <label description="שם" languagecode="1037" />
+                        </labels>
+                        <control id="alex_name" classid="{4273EDBD-AC1D-40d3-9FB2-095C621B552D}" datafieldname="alex_name" disabled="false" />
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+                <section name="CardFooter" showlabel="false" columns="1111" showbar="false" id="{fec49fd9-21a9-4b3e-93d0-423e68b5aeff}" IsUserDefined="0">
+                  <labels>
+                    <label description="Footer" languagecode="1033" />
+                    <label description="כותרת תחתונה" languagecode="1037" />
+                  </labels>
+                  <rows>
+                    <row>
+                      <cell id="{f5e3cdfc-1629-44fe-90dc-360455fcdc5c}" showlabel="true" locklevel="0">
+                        <labels>
+                          <label description="Owner" languagecode="1033" />
+                          <label description="בעלים" languagecode="1037" />
+                        </labels>
+                        <control id="ownerid" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="ownerid" disabled="false" />
+                      </cell>
+                      <cell id="{b5598fad-4dd7-4c0a-9719-4152bf0ba896}" showlabel="true" locklevel="0">
+                        <labels>
+                          <label description="Created On" languagecode="1033" />
+                          <label description="נוצר ב:" languagecode="1037" />
+                        </labels>
+                        <control id="createdon" classid="{270BD3DB-D9AF-4782-9025-509E298DEC0A}" datafieldname="createdon" disabled="false" />
+                      </cell>
+                      <cell id="{b522b8f5-101d-4ae6-b3a9-e5a11c4eebf8}" showlabel="true" locklevel="0">
+                        <labels>
+                          <label description="" languagecode="1037" />
+                        </labels>
+                      </cell>
+                      <cell id="{f36c734a-acd2-4357-8f1f-5da6467957b4}" showlabel="true" locklevel="0">
+                        <labels>
+                          <label description="" languagecode="1037" />
+                        </labels>
+                      </cell>
+                    </row>
+                  </rows>
+                </section>
+              </sections>
+            </column>
+          </columns>
+        </tab>
+      </tabs>
+    </form>
+    <IsCustomizable>1</IsCustomizable>
+    <CanBeDeleted>1</CanBeDeleted>
+    <LocalizedNames>
+      <LocalizedName description="Information" languagecode="1033" />
+      <LocalizedName description="מידע" languagecode="1037" />
+    </LocalizedNames>
+    <Descriptions>
+      <Description description="A card form for this entity." languagecode="1033" />
+      <Description description="טופס כרטיס עבור טבלה זו." languagecode="1037" />
+    </Descriptions>
+  </systemform>
+</forms>

@@ -32,8 +32,8 @@ The key choices behind the solution, with the public documentation that supports
 
 **Inbox in Cosmos DB, not Dataverse.**
 - Inbox items are high-volume, expiring, per-recipient data. They live in Cosmos DB, partitioned by `recipientKey`, with a per-item TTL.
-- CIJ stores delivery status and trigger events. v1 has no Dataverse message log.
-- **Planned (required): a Dataverse message log as an elastic table** (`alex_pushmessagelog`): one row per message event, written by the backend, deleted by TTL. Where it appears in the UI is not decided. Schema: [data-model.md](data-model.md#planned-message-log-elastic-table).
+- CIJ stores delivery status and link-click interactions.
+- **Message log as a Dataverse elastic table** (`alex_pushmessagelog`): one append-only row per message event (Accepted, Rejected, Dispatched, Delivered, Not delivered, Read, Clicked), written asynchronously by the backend through its own queue and deleted by TTL. It is the reference record; partners decide what to build on top (summary table, Fabric, Power BI). Schema and options: [data-model.md](data-model.md#8-message-log-elastic-table-alex_pushmessagelog).
 
 ([Cosmos DB time to live](https://learn.microsoft.com/azure/cosmos-db/how-to-time-to-live), [Cosmos DB partitioning](https://learn.microsoft.com/azure/cosmos-db/partitioning-overview), [Elastic tables](https://learn.microsoft.com/power-apps/maker/data-platform/create-edit-elastic-tables), [Elastic tables for developers](https://learn.microsoft.com/power-apps/developer/data-platform/elastic-tables), [Custom channel custom APIs](https://learn.microsoft.com/dynamics365/customer-insights/journeys/real-time-marketing-custom-channel-custom-api))
 

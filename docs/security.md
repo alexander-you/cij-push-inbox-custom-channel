@@ -41,7 +41,7 @@ Related documents: [architecture](architecture.md), [data model](data-model.md),
 | [SEC-16](#sec-16-idempotency-replay-abuse-and-rate-limiting) | Idempotency, replay, abuse and rate limiting |
 | [SEC-17](#sec-17-third-party-push-services) | Third-party push services |
 | [SEC-18](#sec-18-supply-chain) | Supply chain |
-| [SEC-19](#sec-19-planned-message-log-in-dataverse) | Planned message log in Dataverse |
+| [SEC-19](#sec-19-message-log-in-dataverse) | Message log in Dataverse |
 | [SEC-20](#sec-20-shared-responsibility) | Shared responsibility |
 | [SEC-21](#sec-21-message-images-from-the-asset-library) | Message images from the asset library |
 
@@ -342,7 +342,7 @@ See the diagrams in [architecture.md](architecture.md).
   - Because inbox items are partitioned by `recipientKey`, an administrator can delete all of a recipient's items in one operation.
 - **Planned:**
   - A "delete by recipient" operation covering Cosmos DB and Notification Hubs installations.
-  - The planned Dataverse message log ([SEC-19](#sec-19-planned-message-log-in-dataverse)).
+  - The Dataverse message log ([SEC-19](#sec-19-message-log-in-dataverse)): delete rows by `alex_ContactId` and `alex_recipientlogid`.
 - **Customer responsibility:**
   - Include this solution's stores in the DSR process.
   - Set the trace log setting to *Exception* or *Off* outside troubleshooting.
@@ -445,20 +445,19 @@ See the diagrams in [architecture.md](architecture.md).
   - [Strong-named assemblies](https://learn.microsoft.com/dotnet/standard/assembly/strong-named)
   - [Dependabot alerts](https://docs.github.com/code-security/dependabot/dependabot-alerts/about-dependabot-alerts)
 
-## SEC-19 Planned message log in Dataverse
+## SEC-19 Message log in Dataverse
 
-**Planned, not implemented.** The design adds a per-message log as a Dataverse **elastic table**, holding status, timestamps and journey identifiers. Its schema is in [data-model.md](data-model.md#planned-message-log-elastic-table).
+**Implemented.** A per-message event log in the Dataverse **elastic table** `alex_pushmessagelog` (identifiers, event type, timestamps, reason). Schema: [data-model.md](data-model.md#8-message-log-elastic-table-alex_pushmessagelog).
 
-- **Risk:** the log adds a third store of personal data, the recipient key, plus a lookup to the contact. Access in Dataverse follows its security roles.
-- **Planned controls:**
-  - Store no message content (title, body, image); identifiers, status and reason only.
-  - Column-level security on `alex_recipientkey`. Elastic tables support field-level security.
-  - Set a row time-to-live (`ttlinseconds`): 180 days, 7 days for test sends. Dataverse deletes expired rows.
-  - Organization-owned rows, written only by the backend application user through a dedicated role. Read access through a separate role.
-  - Include the table in delete-by-recipient.
-- **Residual risk:** rows exported through Azure Synapse Link before they expire are not deleted from the data lake by TTL. Field-level security doesn't restrict system administrators.
-- **Customer responsibility:** decide who can view the log once a display location is chosen.
-- **Sources:** [Elastic tables](https://learn.microsoft.com/power-apps/developer/data-platform/elastic-tables), [Create and edit elastic tables](https://learn.microsoft.com/power-apps/maker/data-platform/create-edit-elastic-tables), [Field-level security](https://learn.microsoft.com/power-platform/admin/field-level-security).
+- **Risk:** the log is another store of data about the recipient: a contact lookup and a pseudonymous recipient ID. Pseudonymous data is still personal data under GDPR.
+- **Controls:**
+  - No message content (title, body, image, URLs) and no raw recipient key. The recipient is stored as `alex_recipientlogid`, a 12-character SHA-256 prefix, so no field-level security is needed.
+  - Row time-to-live (`ttlinseconds`): `MESSAGE_LOG_TTL_DAYS` (default 180), `MESSAGE_LOG_TEST_TTL_DAYS` (default 7) for test sends. Dataverse deletes expired rows.
+  - Written only by the backend's managed-identity application user with the **Push Inbox Log Writer** role (create, read, write and append on the log, user level; append-to on contact; no delete). Marketers get **Push Inbox Log Reader** (read only).
+  - Log writes go through a separate Service Bus queue, so a Dataverse failure can't block or alter a send.
+- **Residual risk:** rows exported through Fabric or Azure Synapse Link are not deleted by TTL. System administrators can read every row.
+- **Customer responsibility:** grant the Reader role only to people who need it; include the table and any export in the DSR process.
+- **Sources:** [Elastic tables](https://learn.microsoft.com/power-apps/developer/data-platform/elastic-tables), [Create and edit elastic tables](https://learn.microsoft.com/power-apps/maker/data-platform/create-edit-elastic-tables), [Application users](https://learn.microsoft.com/power-platform/admin/manage-application-users).
 
 ## SEC-20 Shared responsibility
 
