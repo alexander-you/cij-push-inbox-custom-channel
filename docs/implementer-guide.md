@@ -119,7 +119,9 @@ What to build on top depends on the customer:
 - **C.** Fabric / Synapse Link and Power BI.
 - **D.** CIJ's own interaction data.
 
-Schema, write path, retention and the trade-offs of each option: [data model §8](data-model.md#8-message-log-elastic-table-alex_pushmessagelog). Privacy: [SEC-19](security.md#sec-19-message-log-in-dataverse).
+Schema, write path, retention and the trade-offs of each option: [data model §8](data-model.md#8-message-log-elastic-table-alex_pushmessagelog).
+
+**Segments from push events** (who clicked, who read, …): journey branching on CIJ's custom-channel interactions works today. Using the log in real-time segments is unverified; a small standard summary table is the documented fallback. *Blocked* isn't available. See [data model §8.9](data-model.md#89-building-segments-from-push-events). Privacy: [SEC-19](security.md#sec-19-message-log-in-dataverse).
 
 ## 8. Operate
 
