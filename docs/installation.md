@@ -123,6 +123,19 @@ The script is idempotent. It:
 
 **Marketers and admins who read the message log** need the **Push Inbox Log Reader** role. Assign it in the Power Platform admin center ([Assign a security role to a user](https://learn.microsoft.com/power-platform/admin/assign-security-roles)).
 
+### 4.4 Native push credentials (Android and iOS)
+
+Only needed if your own Android or iOS app receives the push. The template configures Web Push only. Add the native credentials yourself, in your own notification hub, from your own Firebase project and Apple developer account:
+
+| Platform | What you need | Where to set it |
+|---|---|---|
+| Android (FCM v1) | A Firebase **service account** private key (JSON): project ID, private key and client email | Azure portal > the notification hub > **Settings > Google (FCM v1)**, or the management API ([FCM v1 in Notification Hubs](https://learn.microsoft.com/azure/notification-hubs/notification-hubs-gcm-to-fcm), [REST and management API](https://learn.microsoft.com/azure/notification-hubs/firebase-migration-rest)) |
+| iOS (APNs) | **Token-based** authentication: key ID, the `.p8` key, team ID and bundle ID. Choose *Sandbox* for development builds and *Production* for store builds | Azure portal > the notification hub > **Settings > Apple (APNS)** ([Configure APNs in Notification Hubs](https://learn.microsoft.com/azure/notification-hubs/configure-apple-push-notification-service)) |
+
+- **Use token authentication for APNs.** The backend sends the `apns-push-type` header, which Notification Hubs supports only with token-based APNs credentials ([iOS 13 updates](https://learn.microsoft.com/azure/notification-hubs/push-notification-updates-ios-13)).
+- **No redeploy is needed.** The Dispatcher sends to every platform in `PUSH_PLATFORMS` (default `browser,fcmv1,apns`). While a platform has no credentials, Notification Hubs answers `400 … no target applications` and the Dispatcher skips that platform (verified). Set `PUSH_PLATFORMS` on the Function App to drop the extra calls if you'll never use a platform.
+- **Don't** put these credentials in this repository or in the azd environment.
+
 ## 5. Configure CIJ and run the first test
 
 1. In CIJ settings, add a **Push + Inbox** channel instance (app key, for example `contoso-demo-app`), then run step 4.3 with its id.

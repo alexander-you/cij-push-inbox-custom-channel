@@ -46,6 +46,8 @@ public sealed class DispatchRecord
     [JsonProperty("storedOn")] public DateTimeOffset? StoredOn { get; set; }
     [JsonProperty("pushedOn")] public DateTimeOffset? PushedOn { get; set; }
     [JsonProperty("pushedCount")] public int PushedCount { get; set; }
+    /// <summary>Per-platform send results (browser, fcmv1, apns), written after each platform so a redelivery skips platforms already sent.</summary>
+    [JsonProperty("platformResults")] public Dictionary<string, PlatformResult>? PlatformResults { get; set; }
     [JsonProperty("failureReason")] public string? FailureReason { get; set; }
     [JsonProperty("reportedOn")] public DateTimeOffset? ReportedOn { get; set; }
     [JsonProperty("reportError")] public string? ReportError { get; set; }

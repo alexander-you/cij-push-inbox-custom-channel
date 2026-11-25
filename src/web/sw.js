@@ -12,7 +12,7 @@ self.addEventListener('push', (event) => {
     icon: 'icon.svg',
     image: data.image || undefined,
     tag: data.messageId || undefined,
-    data: { url: data.url || null, messageId: data.messageId || null },
+    data: { url: data.url || null, messageId: data.messageId || null, inboxItemId: data.inboxItemId || data.messageId || null },
   };
   event.waitUntil(Promise.all([
     self.registration.showNotification(data.title || 'Push Inbox', options),
@@ -22,11 +22,11 @@ self.addEventListener('push', (event) => {
 
 // A tap opens the action URL. When that URL is a CIJ tracked link to this app, CIJ counts the click and redirects here
 // with ?msdynmkt_trackingcontext=<RequestId>, which the app uses to open that message. Without a URL, the app opens
-// directly and #m=<messageId> identifies the message.
+// directly and #m=<inboxItemId> identifies the message.
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const data = event.notification.data || {};
   let url = data.url;
-  if (!url) url = self.registration.scope + (data.messageId ? '#m=' + encodeURIComponent(data.messageId) : '');
+  if (!url) url = self.registration.scope + (data.inboxItemId ? '#m=' + encodeURIComponent(data.inboxItemId) : '');
   event.waitUntil(self.clients.openWindow(url));
 });

@@ -42,6 +42,8 @@ These are the issues we ran into while building and testing the solution, with t
 
 | Symptom | Cause | Fix |
 |---|---|---|
+| `Notification Hubs fcmv1 send 400` or `apns send 400` with *no target applications*. | The hub has no FCM v1 or APNs credentials. This is expected when you only use the PWA. The Dispatcher skips that platform and logs it as `NotConfigured`. | Add the credentials ([installation §4.4](installation.md#44-native-push-credentials-android-and-ios)), or set `PUSH_PLATFORMS=browser` ([configuration](configuration.md#function-app-settings-you-may-change)). |
+| A send is *NotDelivered* with reason `NoPushPlatform`. | No platform in `PUSH_PLATFORMS` has credentials on the hub. | As above. |
 | `Notification Hubs send … success 0` on a test send. | No browser is subscribed for that recipient and app key. The recipient formats can also differ, for example `+972-50-…` vs `+97250…`: hyphens are kept when normalizing. | Subscribe with exactly the recipient value CIJ sends ([developer integration, identifiers](developer-integration.md#identifiers)). |
 | A journey send is *Delivered*, but no notification appeared. | *Delivered* means Notification Hubs accepted the push, not that the device showed it. On the Free tier, per-device results aren't available for real sends. | Check the browser's notification permission. Use the Standard tier for per-message telemetry ([Notification Hubs pricing](https://azure.microsoft.com/pricing/details/notification-hubs/)). |
 | Two notifications arrived. | Usually two different sends, for example a test send plus a journey entry, or two journey entries. | Compare the `MessageId`/`RequestId` values in the traces. A redelivery of the same message logs `Push step already done`, not a second push. |

@@ -9,7 +9,7 @@ using Newtonsoft.Json;
 namespace PushInbox.Functions;
 
 /// <summary>
-/// Inbox API used by the reference PWA: Web Push device registration and inbox list / read / delete.
+/// Inbox API used by the reference PWA and native apps: device registration (browser Web Push, FCM v1, APNs) and inbox list / read / click / delete.
 /// TEST HARNESS ONLY: the caller identifies itself with appKey + recipientKey and no sign-in.
 /// Production apps must authenticate the end user and derive recipientKey from a verified token (see docs/known-limitations.md).
 /// </summary>
@@ -26,18 +26,21 @@ public sealed class InboxApi(Store store, NotificationHubRest hub, MessageLog me
         var r = JsonConvert.DeserializeObject<DeviceRegistration>(await new StreamReader(req.Body).ReadToEndAsync(ct));
         var appKey = Keys.App(r?.AppKey);
         var recipientKey = Keys.Recipient(r?.RecipientKey);
-        if (r == null || appKey.Length == 0 || recipientKey.Length == 0 || string.IsNullOrEmpty(r.InstallationId)
-            || !Uri.TryCreate(r.Endpoint, UriKind.Absolute, out var endpoint) || endpoint.Scheme != Uri.UriSchemeHttps
-            || string.IsNullOrEmpty(r.P256dh) || string.IsNullOrEmpty(r.Auth))
+        var platform = DeviceRegistration.Validate(r);
+        if (r == null || platform == null || appKey.Length == 0 || recipientKey.Length == 0)
         {
             return new BadRequestObjectResult(new { reason = "InvalidRegistration" });
         }
 
         // Tags are set here, never by the client.
         var tags = new[] { Keys.RecipientTag(recipientKey), $"app:{appKey}" };
-        await hub.UpsertBrowserInstallationAsync(Keys.Recipient(r.InstallationId), r.Endpoint!, r.P256dh!, r.Auth!, tags, ct);
-        log.LogInformation("Browser installation {InstallationLogId} registered for recipient {RecipientLogId} app {AppKey}", Keys.LogId(r.InstallationId), Keys.LogId(recipientKey), appKey);
-        return new OkObjectResult(new { recipientKey, appKey, tags });
+        var installationId = Keys.Recipient(r.InstallationId);
+        if (platform == PushPlatform.Browser)
+            await hub.UpsertBrowserInstallationAsync(installationId, r.Endpoint!, r.P256dh!, r.Auth!, tags, ct);
+        else
+            await hub.UpsertNativeInstallationAsync(installationId, platform, r.PushToken!.Trim(), tags, ct);
+        log.LogInformation("{Platform} installation {InstallationLogId} registered for recipient {RecipientLogId} app {AppKey}", platform, Keys.LogId(r.InstallationId), Keys.LogId(recipientKey), appKey);
+        return new OkObjectResult(new { recipientKey, appKey, platform, tags });
     }
 
     [Function("ListInbox")]
@@ -120,13 +123,36 @@ public sealed class InboxApi(Store store, NotificationHubRest hub, MessageLog me
     private static (string appKey, string recipientKey) Identity(HttpRequest req) =>
         (Keys.App(req.Query["appKey"]), Keys.Recipient(req.Query["recipientKey"]));
 
-    private sealed class DeviceRegistration
+    public sealed class DeviceRegistration
     {
+        /// <summary>browser (default), fcmv1 or apns.</summary>
+        public string? Platform { get; set; }
         public string? AppKey { get; set; }
         public string? RecipientKey { get; set; }
         public string? InstallationId { get; set; }
+        // Browser: the PushSubscription fields.
         public string? Endpoint { get; set; }
         public string? P256dh { get; set; }
         public string? Auth { get; set; }
+        /// <summary>Native: the FCM registration token (fcmv1) or the APNs device token as hex (apns).</summary>
+        public string? PushToken { get; set; }
+
+        private static readonly System.Text.RegularExpressions.Regex ApnsToken = new("^[0-9a-fA-F]{64,200}$");
+
+        /// <summary>Returns the normalised platform name, or null when the registration is invalid. Doesn't check appKey / recipientKey.</summary>
+        public static string? Validate(DeviceRegistration? r)
+        {
+            if (r == null || string.IsNullOrWhiteSpace(r.InstallationId) || Keys.Recipient(r.InstallationId).Length == 0) return null;
+            var platform = string.IsNullOrWhiteSpace(r.Platform) ? PushPlatform.Browser : r.Platform.Trim().ToLowerInvariant();
+            var token = r.PushToken?.Trim() ?? "";
+            return platform switch
+            {
+                PushPlatform.Browser when Uri.TryCreate(r.Endpoint, UriKind.Absolute, out var endpoint) && endpoint.Scheme == Uri.UriSchemeHttps
+                    && !string.IsNullOrEmpty(r.P256dh) && !string.IsNullOrEmpty(r.Auth) => platform,
+                PushPlatform.FcmV1 when token.Length is > 0 and <= 4096 && !token.Any(char.IsWhiteSpace) => platform,
+                PushPlatform.Apns when ApnsToken.IsMatch(token) => platform,
+                _ => null,
+            };
+        }
     }
 }

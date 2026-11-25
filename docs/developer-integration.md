@@ -6,7 +6,9 @@ For developers of the customer's own web, Android or iOS app. To receive Push + 
 2. **Reads the inbox** and marks items as read or deletes them, through the Inbox API.
 3. **Opens the tracked action link on tap**, so CIJ counts the click; see [step 3](#3-how-to-report-clicks).
 
-**Reference implementation:** the PWA in [`src/web`](../src/web) (`app.js` and `sw.js`). Everything in this guide for the web is taken from that code, which has been tested end to end in Microsoft Edge. Android and iOS are **not implemented** in the backend yet; those sections show what is needed, based on the platform vendors' public docs, and are labelled accordingly.
+**Reference implementation:** the PWA in [`src/web`](../src/web) (`app.js` and `sw.js`). Everything in this guide for the web is taken from that code, which has been tested end to end in Microsoft Edge.
+
+**Android and iOS:** the backend registers FCM v1 and APNs devices and sends to them (`InboxApi.cs`, `Dispatcher.cs`, `PushPlatforms.cs`). There is no reference native app in this repository. The client snippets below are based on the platform vendors' public docs and have **not been tested on a device**. What was verified without devices: registration creates the right Notification Hubs installation, the per-platform payloads (unit tests), and that a hub without FCM v1 or APNs credentials skips that platform without failing the message. **Unverified:** delivery to a real Android or iOS device.
 
 > **The Inbox API in this repository is a test harness.** It is anonymous: the caller identifies itself with `appKey` + `recipientKey` and no sign-in. Don't ship an app against it unchanged. See [What must change for production](#what-must-change-for-production).
 
@@ -67,11 +69,32 @@ await fetch(`${apiBaseUrl}/devices`, {
 | `image` | Image URL, optional |
 | `url` | Action URL, optional. A CIJ tracked link when the message has one ([section 3](#3-how-to-report-clicks)). |
 | `messageId` | Message ID; used as the notification `tag` |
+| `inboxItemId` | Inbox item `id`, for `/inbox/{id}/read` and `#m=` |
 | `dir`, `lang` | `rtl`/`he` when the text contains Hebrew or Arabic, otherwise `ltr`/`en` |
 
-### Android (planned, not implemented)
+### Native apps: registration contract (backend implemented; clients untested)
 
-**Backend change required:** `POST /devices` accepts only browser subscriptions today. Supporting Android means registering an FCM v1 installation in Notification Hubs ([Installations](https://learn.microsoft.com/azure/notification-hubs/notification-hubs-push-notification-registration-management), [FCM v1 in Notification Hubs](https://learn.microsoft.com/azure/notification-hubs/notification-hubs-gcm-to-fcm)). The request shape below is a **proposal**.
+`POST {apiBaseUrl}/devices` takes the same `appKey`, `recipientKey` and `installationId`, plus `platform` and `pushToken`:
+
+```json
+{ "platform": "fcmv1", "appKey": "…", "recipientKey": "…", "installationId": "…", "pushToken": "<FCM registration token>" }
+{ "platform": "apns",  "appKey": "…", "recipientKey": "…", "installationId": "…", "pushToken": "<APNs device token, hex>" }
+```
+
+| `platform` | Required fields | Notification Hubs installation |
+|---|---|---|
+| `browser` (default when omitted) | `endpoint` (https), `p256dh`, `auth` | `platform: browser` |
+| `fcmv1` | `pushToken`: the FCM registration token, no whitespace, up to 4096 characters | `platform: fcmv1`, `pushChannel` = token |
+| `apns` | `pushToken`: the device token as hex, 64–200 characters | `platform: apns`, `pushChannel` = token |
+
+- Returns `200 { recipientKey, appKey, platform, tags }`, or `400 { reason: "InvalidRegistration" }`. Tags are set by the backend, exactly as for the web.
+- **Verified** against a hub: the installation is stored as `FcmV1` / `Apns` with the backend's tags. Notification Hubs stores the APNs hex token in upper case.
+- Re-register when the token rotates (FCM `onNewToken`; iOS calls `didRegisterForRemoteNotificationsWithDeviceToken` on every launch where you register) and when the signed-in user changes.
+- Sources: [Create or overwrite an installation](https://learn.microsoft.com/rest/api/notificationhubs/create-overwrite-installation), [FCM v1 in Notification Hubs](https://learn.microsoft.com/azure/notification-hubs/notification-hubs-gcm-to-fcm), [Registration management](https://learn.microsoft.com/azure/notification-hubs/notification-hubs-push-notification-registration-management).
+
+**The hub needs credentials for each native platform.** The customer adds them in their own Notification Hubs namespace; see [installation](installation.md#44-native-push-credentials-android-and-ios). Without them, sends to that platform are skipped.
+
+### Android (backend implemented; client untested)
 
 App side, per the [Firebase Android client guide](https://firebase.google.com/docs/cloud-messaging/android/client):
 
@@ -80,17 +103,14 @@ App side, per the [Firebase Android client guide](https://firebase.google.com/do
 - On Android 13 and later, request the runtime `POST_NOTIFICATIONS` permission ([notification permission](https://developer.android.com/develop/ui/views/notifications/notification-permission)).
 
 ```kotlin
-// From the Firebase guide; not tested with this backend.
+// Based on the Firebase guide; not tested on a device with this backend.
 FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
     if (!task.isSuccessful) return@addOnCompleteListener
-    val token = task.result
-    // Proposed: POST {apiBaseUrl}/devices { appKey, recipientKey, installationId, platform: "fcmv1", pushChannel: token }
+    // POST {apiBaseUrl}/devices { platform: "fcmv1", appKey, recipientKey, installationId, pushToken: task.result }
 }
 ```
 
-### iOS (planned, not implemented)
-
-**Backend change required:** register an APNs installation in Notification Hubs ([Installations](https://learn.microsoft.com/azure/notification-hubs/notification-hubs-push-notification-registration-management)). The request shape is a **proposal**.
+### iOS (backend implemented; client untested)
 
 App side, per Apple's docs:
 
@@ -99,15 +119,41 @@ App side, per Apple's docs:
 - Receive the device token in `application(_:didRegisterForRemoteNotificationsWithDeviceToken:)` and forward it to your server ([Registering your app with APNs](https://developer.apple.com/documentation/usernotifications/registering-your-app-with-apns)).
 
 ```swift
-// Based on Apple's documentation; not tested with this backend.
+// Based on Apple's documentation; not tested on a device with this backend.
 func application(_ application: UIApplication,
                  didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
     let token = deviceToken.map { String(format: "%02x", $0) }.joined()
-    // Proposed: POST {apiBaseUrl}/devices { appKey, recipientKey, installationId, platform: "apns", pushChannel: token }
+    // POST {apiBaseUrl}/devices { platform: "apns", appKey, recipientKey, installationId, pushToken: token }
 }
 ```
 
-The hex encoding of the token is common practice. **Unverified** against the format Notification Hubs expects for `pushChannel`; confirm it in the Notification Hubs installation docs before you build it.
+### Push payload per platform
+
+The Dispatcher sends one native notification per platform, with the same tag expression; Notification Hubs delivers each format only to installations of that platform ([APNs native send](https://learn.microsoft.com/rest/api/notificationhubs/send-apns-native-notification), [FCM v1 sends](https://learn.microsoft.com/azure/notification-hubs/firebase-migration-rest)). Every payload carries the same values (code: `src/PushInbox.Functions/PushPlatforms.cs`):
+
+| Value | Web (`browser`) | Android (`fcmV1`) | iOS (`apple`) |
+|---|---|---|---|
+| Title, body | `title`, `body` | `message.notification.title` / `.body` | `aps.alert.title` / `.body` |
+| Image | `image` | `message.notification.image` and `message.data.image` | `image` (custom key); `aps.mutable-content: 1` is set when there is an image |
+| Action URL | `url` | `message.data.url` | `url` |
+| Message ID | `messageId` | `message.data.messageId` | `messageId` |
+| Inbox item ID | `inboxItemId` | `message.data.inboxItemId` | `inboxItemId` |
+| Text direction | `dir`, `lang` | `message.data.dir` | `dir` |
+
+```json
+// fcmV1
+{ "message": { "notification": { "title": "…", "body": "…", "image": "https://…" },
+               "data": { "messageId": "…", "inboxItemId": "…", "dir": "ltr", "url": "https://…", "image": "https://…" } } }
+// apple (headers apns-push-type: alert, apns-priority: 10)
+{ "aps": { "alert": { "title": "…", "body": "…" }, "mutable-content": 1 },
+  "messageId": "…", "inboxItemId": "…", "dir": "ltr", "url": "https://…", "image": "https://…" }
+```
+
+- **Inbox item ID** is the `id` to use with `/inbox/{id}/read` and `/inbox/{id}/click`. It equals `messageId` unless the message has a replace key.
+- FCM `data` values are strings only ([FCM v1 message](https://firebase.google.com/docs/reference/fcm/rest/v1/projects.messages)). APNs custom keys sit beside `aps` ([Generating a remote notification](https://developer.apple.com/documentation/usernotifications/generating-a-remote-notification)); `apns-push-type: alert` is required by Apple and is sent as a header ([iOS 13 updates](https://learn.microsoft.com/azure/notification-hubs/push-notification-updates-ios-13)).
+- FCM and APNs limit the payload to 4 KB, so native alerts shorten the title to 200 and the body to 1,000 characters. The inbox item keeps the full text.
+- iOS shows the image only if the app has a Notification Service Extension that downloads `image` ([Modifying content in newly delivered notifications](https://developer.apple.com/documentation/usernotifications/modifying-content-in-newly-delivered-notifications)).
+- **Opening the message:** on tap, open `url` if present (section 3); otherwise open the inbox at `inboxItemId`. Then `POST /inbox/{inboxItemId}/read`.
 
 ## 2. Read the inbox
 
@@ -158,7 +204,7 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const data = event.notification.data || {};
   // No action URL: open the app directly; the fragment survives because there is no redirect.
-  const url = data.url || self.registration.scope + '#m=' + encodeURIComponent(data.messageId);
+  const url = data.url || self.registration.scope + '#m=' + encodeURIComponent(data.inboxItemId);
   event.waitUntil(self.clients.openWindow(url));
 });
 
@@ -174,17 +220,17 @@ const item = items.find((i) => i.requestId === requestId);   // or i.id === #m
 - **Without an action URL**, a tap opens the app and **no click is counted** in CIJ.
 - Sources: [notificationclick](https://developer.mozilla.org/docs/Web/API/ServiceWorkerGlobalScope/notificationclick_event), [Clients.openWindow](https://developer.mozilla.org/docs/Web/API/Clients/openWindow).
 
-### Android (not implemented, untested)
+### Android (client untested)
 
-- Put `url` in the FCM message's **data** payload.
+- The backend puts `url` in the FCM message's **data** payload.
 - If the app handles the message in `FirebaseMessagingService.onMessageReceived`, build the notification with a `contentIntent` (PendingIntent) that opens the tracked `url` with `Intent.ACTION_VIEW` ([Set the tap action](https://developer.android.com/develop/ui/views/notifications/build-notification)).
 - For *notification* messages received while the app is in the background, Android shows the notification itself. A tap launches the launcher activity with the data payload in the intent extras; read `url` there and open it ([Receive messages](https://firebase.google.com/docs/cloud-messaging/android/receive-messages)).
 - To land in the app, make the action URL an Android App Link to your app ([App Links](https://developer.android.com/training/app-links)).
 - **Unverified:** whether the browser opens the app when CIJ's tracking page redirects to an App Link from JavaScript. Test this before you rely on it.
 
-### iOS (not implemented, untested)
+### iOS (client untested)
 
-- Put `url` in the APNs payload as a custom key.
+- The backend puts `url` in the APNs payload as a custom key.
 - In `userNotificationCenter(_:didReceive:withCompletionHandler:)`, read it from `response.notification.request.content.userInfo` and open it ([UNUserNotificationCenterDelegate](https://developer.apple.com/documentation/usernotifications/unusernotificationcenterdelegate/usernotificationcenter(_:didreceive:withcompletionhandler:))).
 - To land in the app, use a Universal Link ([Supporting universal links](https://developer.apple.com/documentation/xcode/supporting-universal-links-in-your-app)).
 - **Unverified:** the same redirect caveat as Android. Opening the tracked link in an in-app browser and then routing internally is an alternative.
@@ -197,10 +243,9 @@ In priority order. Details and sources are in [security considerations](security
    - Use your existing identity provider, or Microsoft Entra External ID ([overview](https://learn.microsoft.com/entra/external-id/customers/overview-customers-ciam)). Validate the token in the API, for example with App Service authentication ([overview](https://learn.microsoft.com/azure/app-service/overview-authentication-authorization)).
    - Derive `recipientKey` from a verified claim, never from the request.
    - Device registration must be authenticated the same way, otherwise anyone can subscribe to another person's messages ([SEC-10](security.md#sec-10-inbox-api-end-user-authentication-and-authorization)).
-2. **Native platforms.** Add FCM v1 and APNs installations to `POST /devices` (section 1).
-3. **Execute privileges on the custom APIs.** Restrict `alex_PushOutbound` and `alex_PushDeliveryReport` to a dedicated role ([SEC-07](security.md#sec-07-least-privilege-in-dataverse)).
-4. **Plug-in to Azure authentication.** Replace the function key with a managed identity / Entra ID token ([SEC-04](security.md#sec-04-authentication-from-dataverse-to-azure)).
-5. **Rate limiting and a gateway.** Put Azure API Management in front of the APIs, with per-key rate limits ([rate-limit-by-key](https://learn.microsoft.com/azure/api-management/rate-limit-by-key-policy), [SEC-16](security.md#sec-16-idempotency-replay-abuse-and-rate-limiting)).
-6. **Keyed tag hashing.** Move from a plain SHA-256 to a keyed hash (HMAC) for recipient tags, and remove the transitional plain-tag match in the Dispatcher ([SEC-12](security.md#sec-12-personal-data-in-notification-hubs-tags)).
-7. **Clicks on native apps** (section 3), and a custom trigger if you need to branch on app opens specifically.
-8. **Production tiers** ([production sizing](production-sizing.md)).
+2. **Execute privileges on the custom APIs.** Restrict `alex_PushOutbound` and `alex_PushDeliveryReport` to a dedicated role ([SEC-07](security.md#sec-07-least-privilege-in-dataverse)).
+3. **Plug-in to Azure authentication.** Replace the function key with a managed identity / Entra ID token ([SEC-04](security.md#sec-04-authentication-from-dataverse-to-azure)).
+4. **Rate limiting and a gateway.** Put Azure API Management in front of the APIs, with per-key rate limits ([rate-limit-by-key](https://learn.microsoft.com/azure/api-management/rate-limit-by-key-policy), [SEC-16](security.md#sec-16-idempotency-replay-abuse-and-rate-limiting)).
+5. **Keyed tag hashing.** Move from a plain SHA-256 to a keyed hash (HMAC) for recipient tags, and remove the transitional plain-tag match in the Dispatcher ([SEC-12](security.md#sec-12-personal-data-in-notification-hubs-tags)).
+6. **Test native apps on devices** (section 1), including clicks (section 3), and add a custom trigger if you need to branch on app opens specifically.
+7. **Production tiers** ([production sizing](production-sizing.md)).

@@ -53,7 +53,15 @@ Marketers fill these in the built-in message editor of the journey tile. ([Messa
 |---|---|
 | Notification Hubs connection string (Listen + Send rule) | Key Vault secret, read by the Function App through a Key Vault reference. ([Key Vault references](https://learn.microsoft.com/azure/app-service/app-service-key-vault-references)) |
 | VAPID private key | The Notification Hub's browser credential, and the azd environment on the deploying machine (`.azure/`, git-ignored). ([Notification Hubs browser push](https://learn.microsoft.com/azure/notification-hubs/browser-push)) |
+| FCM v1 service account key, APNs `.p8` key | Only if you add native apps: the notification hub's Google (FCM v1) and Apple (APNS) settings, set by you in the portal ([installation §4.4](installation.md#44-native-push-credentials-android-and-ios)). |
 | Function key | Function App host keys. For test environments it's also copied to `alex_channelapikey` (column-secured). |
 | Storage, Service Bus, Cosmos DB, Dataverse | No secrets: the Function App's managed identity is used. |
 
 Details and residual risks: [security.md](security.md).
+
+## Function App settings you may change
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `PUSH_PLATFORMS` | `browser,fcmv1,apns` (when unset) | Platforms the Dispatcher sends to, comma-separated. A platform without credentials on the hub is skipped. Unknown values stop the Dispatcher at startup. |
+| `MESSAGE_LOG_TTL_DAYS`, `MESSAGE_LOG_TEST_TTL_DAYS` | `180`, `7` | Message log retention ([data model §8](data-model.md#8-message-log-elastic-table-alex_pushmessagelog)). |

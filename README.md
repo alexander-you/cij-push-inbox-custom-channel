@@ -4,7 +4,7 @@ Customer Insights - Journeys (CIJ) can send push notifications, but its native p
 
 - **Delivery modes:** *Alert + Inbox*, *Inbox only* or *Alert only*, chosen per message.
 - **Reporting:** delivery status (`Delivered` / `NotDelivered`) is reported back to CIJ. *Delivered* means the inbox item was stored or Notification Hubs accepted the push, not that a device displayed it. **Clicks** are counted by CIJ link tracking: a tap on the notification opens the tracked action link, so it appears under *Unique clicks / Total clicks* and can drive an *If/then* "Link Clicked" branch ([how to report clicks](docs/developer-integration.md#3-how-to-report-clicks)). Inbox *opened* events aren't reported to CIJ.
-- **Platforms:** web push (PWA) today, through Azure Notification Hubs. Android (FCM) and iOS (APNs) device registration is planned.
+- **Platforms:** web push (PWA), verified. Android (FCM v1) and iOS (APNs) are implemented in the backend through Azure Notification Hubs but **not yet tested on devices**; you add the FCM v1 and APNs credentials to your hub.
 - **Languages:** full English and Hebrew, including right-to-left.
 - **Installation:** a single Dataverse solution plus a post-import script, and an `azd` template for Azure.
 
@@ -23,9 +23,10 @@ flowchart LR
 |---|---|
 | Dataverse solution `AlexPushInboxChannel` 1.1.0.0: channel definition, 7 message parts, config table and form, custom APIs, plug-ins, environment variable, message log, English and Hebrew labels | Available as managed and unmanaged packages in [`release/1.1.0.0`](release/README.md) |
 | Azure backend (`azd up`): Channel API with idempotency, Service Bus, Dispatcher, Cosmos DB inbox, Notification Hubs Web Push, delivery reports to CIJ | Available (preview) |
+| Native push in the backend: FCM v1 and APNs device registration and sends | Available (preview), **not tested on devices**; no reference native app. See [developer integration](docs/developer-integration.md#native-apps-registration-contract-backend-implemented-clients-untested). |
 | Reference PWA inbox (Static Web Apps) and Inbox API | Available as a **test harness**: the Inbox API is anonymous. See [known limitations](docs/known-limitations.md). |
 | Dataverse message log `alex_pushmessagelog` (elastic table, async writer, Log Writer / Log Reader roles) | Available (preview). See [data model](docs/data-model.md#8-message-log-elastic-table-alex_pushmessagelog). |
-| End-user authentication, interaction triggers, Android/iOS device registration | Planned (see roadmap) |
+| End-user authentication, interaction triggers, a reference native app | Planned (see roadmap) |
 
 ## Documentation
 
@@ -58,6 +59,7 @@ src/PushInbox.Functions/         Azure Functions: Channel API, Dispatcher, Inbox
 src/web/                         Reference PWA inbox (Web Push)
 tools/l10n/                      Translation export, fill, import and verify
 tests/solution/                  Solution structure and label check
+tests/PushInbox.Functions.Tests/ Backend unit tests (dotnet test)
 .githooks/                       Pre-commit hook (enable with tools/setup-hooks.sh)
 ```
 
@@ -68,7 +70,7 @@ tests/solution/                  Solution structure and label check
 3. **Security:** authenticated Inbox API (end-user identity instead of `recipientKey` in the query string), Power Platform managed identity for the plug-in instead of the function key, solution security roles.
 4. **Interactions:** clicks are done through CIJ link tracking. Still open: an *opened* custom trigger if journeys must branch on app opens; `replaceKey`.
 5. **Images:** pick the image from the CIJ asset library instead of typing a URL.
-6. **Mobile apps:** Android (FCM v1) and iOS (APNs) device registration in the Inbox API; [developer integration guide](docs/developer-integration.md).
+6. **Mobile apps:** backend done (FCM v1 and APNs registration and sends, [developer integration guide](docs/developer-integration.md)). Still open: device testing and a reference native app.
 7. **Release:** managed and unmanaged packages are done ([1.1.0.0](release/README.md)). Still open: a sample journey, dead-letter alerting, and delete by recipient.
 
 ## License

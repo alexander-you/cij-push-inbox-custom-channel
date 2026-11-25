@@ -44,10 +44,10 @@ Dashed lines are not implemented yet. Key Vault, Application Insights, the virtu
 | Delivery-report custom API (`alex_PushDeliveryReport`) | Called by the Dispatcher; calls `msdyn_D365ChannelsNotification` | Dataverse | ([Custom channel custom APIs](https://learn.microsoft.com/dynamics365/customer-insights/journeys/real-time-marketing-custom-channel-custom-api)) |
 | Channel API (Function, HTTP, function key) | Validates, de-duplicates on `IdempotencyId` (generates one when CIJ sends it empty), enqueues, returns 202 | Flex Consumption | ([Function access keys](https://learn.microsoft.com/azure/azure-functions/function-keys-how-to)) |
 | Service Bus queue `dispatch` | Buffers, retries, dead-letter queue. Local (SAS) auth disabled. | Basic | ([Service Bus overview](https://learn.microsoft.com/azure/service-bus-messaging/service-bus-messaging-overview)) |
-| Dispatcher (Function, queue trigger) | Writes the inbox item, sends the browser push, calls the delivery-report API (non-test sends only) | Flex Consumption | ([Notification Hubs browser push](https://learn.microsoft.com/azure/notification-hubs/browser-push)) |
+| Dispatcher (Function, queue trigger) | Writes the inbox item, sends one native push per platform (browser, FCM v1, APNs; a platform without hub credentials is skipped), calls the delivery-report API (non-test sends only) | Flex Consumption | ([Notification Hubs browser push](https://learn.microsoft.com/azure/notification-hubs/browser-push)) |
 | Cosmos DB for NoSQL | `inboxItems` (partition `/recipientKey`, per-item TTL = expiry days) and `dispatches` (partition `/idempotencyId`, TTL 30 days). Public access disabled; Entra-only data access. | Serverless | ([Cosmos DB time to live](https://learn.microsoft.com/azure/cosmos-db/how-to-time-to-live), [Cosmos DB RBAC](https://learn.microsoft.com/azure/cosmos-db/nosql/security/how-to-grant-data-plane-role-based-access)) |
-| Azure Notification Hubs | Tag-based browser (Web Push) send; `?test` debug send for CIJ test sends. VAPID keys are stored in the hub's browser credential. | Free | ([Notification Hubs browser push](https://learn.microsoft.com/azure/notification-hubs/browser-push), [Installations](https://learn.microsoft.com/azure/notification-hubs/notification-hubs-push-notification-registration-management), [Pricing](https://azure.microsoft.com/pricing/details/notification-hubs/)) |
-| Inbox API (Function, HTTP, **anonymous**) | `GET /config`, `POST /devices` (browser subscription), `GET /inbox`, `POST /inbox/{id}/read`, `DELETE /inbox/{id}`. Identifies the user by `appKey` + `recipientKey` query values. See [known limitations](known-limitations.md). | Flex Consumption | ([Installations](https://learn.microsoft.com/azure/notification-hubs/notification-hubs-push-notification-registration-management)) |
+| Azure Notification Hubs | Tag-based native sends: browser (Web Push), FCM v1 and APNs. FCM v1 and APNs credentials are added by the customer; `?test` debug send for CIJ test sends. VAPID keys are stored in the hub's browser credential. | Free | ([Notification Hubs browser push](https://learn.microsoft.com/azure/notification-hubs/browser-push), [Installations](https://learn.microsoft.com/azure/notification-hubs/notification-hubs-push-notification-registration-management), [Pricing](https://azure.microsoft.com/pricing/details/notification-hubs/)) |
+| Inbox API (Function, HTTP, **anonymous**) | `GET /config`, `POST /devices` (browser subscription, FCM v1 or APNs token), `GET /inbox`, `POST /inbox/{id}/read`, `DELETE /inbox/{id}`. Identifies the user by `appKey` + `recipientKey` query values. See [known limitations](known-limitations.md). | Flex Consumption | ([Installations](https://learn.microsoft.com/azure/notification-hubs/notification-hubs-push-notification-registration-management)) |
 | Key Vault | Holds the Notification Hubs connection string, read through a Key Vault reference. Public access disabled; RBAC. | Standard | ([Key Vault references](https://learn.microsoft.com/azure/app-service/app-service-key-vault-references)) |
 | Storage account | Function host storage and deployment package; shared-key access disabled; reached through the network security perimeter | Standard LRS | ([Storage and NSP](https://learn.microsoft.com/azure/storage/common/storage-network-security-perimeter)) |
 | Virtual network, private endpoints, NSP | Function VNet integration; private endpoints for Cosmos DB, Key Vault and blob; NSP for storage | — | ([Flex Consumption VNet integration](https://learn.microsoft.com/azure/azure-functions/flex-consumption-plan#virtual-network-integration), [Private endpoints](https://learn.microsoft.com/azure/private-link/private-endpoint-overview)) |
@@ -90,7 +90,7 @@ sequenceDiagram
     D->>DB: upsert inbox item (ttl = expiry days)
   end
   alt mode includes alert
-    D->>N: browser send to rk:{recipientKey} && app:{appKey}
+    D->>N: browser, fcmV1, apple sends to rk:{recipientKey} && app:{appKey}
   end
   alt RequestId present (not a test send)
     D->>R: Delivered / NotDelivered + Details
@@ -128,6 +128,6 @@ Tags are set by the Inbox API, never by the client ([Notification Hubs installat
 
 ## Planned
 
-- FCM v1 and APNs installations for native apps.
+- A reference native app, and device testing of FCM v1 and APNs.
 - Opened and clicked events raised as CIJ custom triggers ([Custom triggers](https://learn.microsoft.com/dynamics365/customer-insights/journeys/real-time-marketing-custom-triggers)).
 - Authenticated Inbox API (for example Entra External ID or the customer's identity provider) and optional API Management.

@@ -12,7 +12,8 @@ public sealed class Store(CosmosClient client, string database)
 }
 
 /// <summary>
-/// Service Bus "dispatch" queue trigger: writes the inbox item, sends the Web Push through Notification Hubs,
+/// Service Bus "dispatch" queue trigger: writes the inbox item, sends the push through Notification Hubs to every platform
+/// (browser Web Push, FCM v1, APNs),
 /// and reports Delivered / NotDelivered back to CIJ when the send has a RequestId.
 /// Each finished step is recorded on the dispatch record (storedOn, pushedOn, reportedOn). A Service Bus redelivery,
 /// or a second enqueue of the same IdempotencyId, repeats only the unfinished steps, so a failed delivery report
@@ -20,6 +21,9 @@ public sealed class Store(CosmosClient client, string database)
 /// </summary>
 public sealed class Dispatcher(Store store, NotificationHubRest hub, DataverseClient dataverse, MessageLog messageLog, ILogger<Dispatcher> log)
 {
+    /// <summary>Platforms to send to (app setting PUSH_PLATFORMS, default browser,fcmv1,apns). A platform without hub credentials is skipped.</summary>
+    private static readonly IReadOnlyList<PushPlatform> Platforms = PushPlatform.Parse(Environment.GetEnvironmentVariable("PUSH_PLATFORMS"));
+
     [Function("Dispatcher")]
     public async Task Run([ServiceBusTrigger("%DISPATCH_QUEUE%", Connection = "ServiceBus")] string body, CancellationToken ct)
     {
@@ -65,43 +69,27 @@ public sealed class Dispatcher(Store store, NotificationHubRest hub, DataverseCl
 
         if (message.Mode != DeliveryMode.InboxOnly && record.PushedOn == null)
         {
-            var payload = JsonConvert.SerializeObject(new
-            {
-                title = message.Title,
-                body = message.Body,
-                image = message.ImageUrl,
-                url = message.ActionUrl,
-                messageId = message.MessageId,
-                dir,
-                lang = dir == "rtl" ? "he" : "en",
-            });
+            var content = new PushContent(message.Title, message.Body, message.ImageUrl, message.ActionUrl, message.MessageId,
+                Keys.InboxItemId(message.AppKey, message.ReplaceKey, message.MessageId), dir);
             // Transitional: devices registered before tags were hashed still carry the plain rk: tag until they re-register.
             var tags = $"({Keys.RecipientTag(message.RecipientKey)} || rk:{message.RecipientKey}) && app:{message.AppKey}";
-            var outcome = await hub.SendBrowserAsync(payload, tags, message.IsTestSend, ct);
-            log.LogInformation("Notification Hubs send {Status} test {Test} success {Success} failure {Failure} results [{Results}] id {NotificationId}",
-                outcome.HttpStatus, message.IsTestSend, outcome.Success, outcome.Failure, string.Join(",", outcome.Results), outcome.NotificationId);
+            var results = record.PlatformResults ?? new Dictionary<string, PlatformResult>();
+            foreach (var platform in Platforms.Where(p => !results.ContainsKey(p.Name)))
+            {
+                var outcome = await hub.SendAsync(platform.Format, platform.BuildPayload(content), tags, message.IsTestSend, platform.Headers, platform.ApiVersion, ct);
+                log.LogInformation("Notification Hubs {Platform} send {Status} test {Test} success {Success} failure {Failure} results [{Results}] id {NotificationId}",
+                    platform.Name, outcome.HttpStatus, message.IsTestSend, outcome.Success, outcome.Failure, string.Join(",", outcome.Results), outcome.NotificationId);
+                // Transient: nothing was pushed on this platform. Platforms already sent are recorded, so the redelivery sends only the rest.
+                if (PushOutcome.IsTransient(outcome)) throw new InvalidOperationException($"Notification Hubs {platform.Name} send returned {outcome.HttpStatus}: {Truncate(outcome.Raw, 300)}");
+                results[platform.Name] = PushOutcome.Classify(outcome, message.IsTestSend);
+                record.PlatformResults = results;
+                await PatchAsync(message, ct, PatchOperation.Set("/platformResults", results));
+            }
 
             dispatched = true;
-            if (message.IsTestSend) (pnsSuccess, pnsFailure) = (outcome.Success, outcome.Failure);
-            var pushed = 0;
-            string? reason = null, detail = null;
-            if (outcome.HttpStatus is < 200 or >= 300)
-            {
-                reason = "PushServiceError";
-                detail = $"Notification Hubs returned {outcome.HttpStatus}: {Truncate(outcome.Raw, 300)}";
-                // Transient: nothing was pushed, so let Service Bus redeliver and try the push again.
-                if (outcome.HttpStatus >= 500 || outcome.HttpStatus == 429) throw new InvalidOperationException(detail);
-            }
-            else if (message.IsTestSend)
-            {
-                pushed = outcome.Success;
-                if (pushed == 0) { reason = "NoDevice"; detail = "No registered browser accepted the notification for this recipient."; }
-            }
-            else
-            {
-                // Standard sends: Notification Hubs accepted the request; per-device results need the Standard tier.
-                pushed = 1;
-            }
+            if (message.IsTestSend) (pnsSuccess, pnsFailure) = (results.Values.Sum(r => r.Success ?? 0), results.Values.Sum(r => r.Failure ?? 0));
+            var (pushed, reason, detail) = PushOutcome.Aggregate(results);
+            detail = Join(PushOutcome.Summary(results), detail);
 
             // Recorded straight after the send so that nothing that fails later (status update, delivery report) causes a second push.
             var pushedOn = DateTimeOffset.UtcNow;

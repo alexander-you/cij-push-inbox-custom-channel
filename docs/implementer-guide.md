@@ -56,6 +56,7 @@ flowchart LR
 | 2 | Import the solution | `pac solution import --environment <url> --path …` ([installation §2](installation.md#2-import)) | The solution shows version 1.1.0.0. |
 | 3 | Grant CIJ read access | `deploy/post-import.sh <url>` ([installation §3](installation.md#3-grant-cij-read-access-to-the-channel-configuration)) | The script prints OK. A warning about a locked Cxp role is expected. |
 | 4 | Deploy Azure | `azd env new` and `azd env set …` (including the VAPID keys), then `azd up` ([installation §4](installation.md#4-deploy-the-azure-backend)) | Outputs `API_BASE_URL` and `WEB_URL`. |
+| 4a | Optional: native credentials | Only for your own Android or iOS app: add FCM v1 and/or APNs (token) credentials to the hub ([installation §4.4](installation.md#44-native-push-credentials-android-and-ios)). | Settings show the credential. |
 | 5 | Connect Dataverse and Azure | `deploy/connect-azure.sh <url>`. This sets the environment variable and creates the app user with **Basic User** and **Push Inbox Log Writer** ([installation §4.3](installation.md#43-connect-dataverse-to-azure)). | The app user exists with both roles. |
 | 6 | Create the channel instance | In CIJ settings, add **Push + Inbox** with an **App key** ([configuration](configuration.md#channel-instance-push-sender)). | The *Push sender* form opens. |
 | 7 | Assign the reader role | Give **Push Inbox Log Reader** to marketers who read the log. | They see *Push message logs* rows. |
@@ -89,7 +90,7 @@ What a customer app must do, with code: [developer integration](developer-integr
 |---|---|
 | Web / PWA (Push API + VAPID via Notification Hubs) | Implemented and **verified**: Microsoft Edge on desktop; Chrome and Samsung Internet on Android. |
 | iOS web push | Needs a Home Screen web app on iOS/iPadOS 16.4+ ([WebKit](https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/)). **Unverified** in this solution. |
-| Native Android (FCM v1) and iOS (APNs) | Not implemented in the backend. Guidance only, **untested** ([developer integration §1](developer-integration.md#1-register-the-device), [§3](developer-integration.md#3-how-to-report-clicks)). |
+| Native Android (FCM v1) and iOS (APNs) | Backend implemented: `POST /devices` registers FCM v1 and APNs tokens, and the Dispatcher sends to every platform. **Verified** without devices: installations, payloads (unit tests), and skipping a platform that has no credentials. **Unverified:** delivery to a real device; there is no reference native app. You add the FCM v1 and APNs credentials to your hub ([installation §4.4](installation.md#44-native-push-credentials-android-and-ios)); the app contract is in [developer integration §1](developer-integration.md#native-apps-registration-contract-backend-implemented-clients-untested) and [§3](developer-integration.md#3-how-to-report-clicks). |
 
 Before production, the Inbox API **must** get end-user authentication. It is anonymous in this repository ([developer integration: What must change for production](developer-integration.md#what-must-change-for-production), [SEC-10](security.md#sec-10-inbox-api-end-user-authentication-and-authorization)).
 

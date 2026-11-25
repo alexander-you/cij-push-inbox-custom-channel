@@ -6,9 +6,10 @@ using System.Xml.Linq;
 namespace PushInbox.Functions;
 
 /// <summary>
-/// Minimal Azure Notification Hubs REST client for browser (Web Push) installations and sends.
+/// Minimal Azure Notification Hubs REST client for installations and native sends (browser Web Push, FCM v1, APNs).
 /// The .NET SDK (Microsoft.Azure.NotificationHubs 4.2.0) has no browser types, so this follows the REST contract:
-/// https://learn.microsoft.com/azure/notification-hubs/browser-push and
+/// https://learn.microsoft.com/azure/notification-hubs/browser-push,
+/// https://learn.microsoft.com/rest/api/notificationhubs/create-overwrite-installation and
 /// https://learn.microsoft.com/rest/api/notificationhubs/common-concepts (SAS authentication).
 /// </summary>
 public sealed class NotificationHubRest
@@ -47,6 +48,18 @@ public sealed class NotificationHubRest
         }
     }
 
+    /// <summary>FCM v1 (platform "fcmv1", pushChannel = FCM registration token) or APNs (platform "apns", pushChannel = device token).</summary>
+    public async Task UpsertNativeInstallationAsync(string installationId, string platform, string pushChannel, IEnumerable<string> tags, CancellationToken ct)
+    {
+        var body = Newtonsoft.Json.JsonConvert.SerializeObject(new { installationId, platform, pushChannel, tags });
+        using var request = Create(HttpMethod.Put, $"installations/{Uri.EscapeDataString(installationId)}", body);
+        using var response = await _http.SendAsync(request, ct);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new HttpRequestException($"Notification Hubs installation failed: {(int)response.StatusCode} {await response.Content.ReadAsStringAsync(ct)}");
+        }
+    }
+
     public async Task DeleteInstallationAsync(string installationId, CancellationToken ct)
     {
         using var request = Create(HttpMethod.Delete, $"installations/{Uri.EscapeDataString(installationId)}", null);
@@ -57,11 +70,17 @@ public sealed class NotificationHubRest
     /// Sends a browser notification to a tag expression. With <paramref name="test"/> = true the hub performs a
     /// debug send (at most 10 devices) and returns per-device outcomes, which we use for test sends.
     /// </summary>
-    public async Task<SendOutcome> SendBrowserAsync(string payloadJson, string tagExpression, bool test, CancellationToken ct)
+    public Task<SendOutcome> SendBrowserAsync(string payloadJson, string tagExpression, bool test, CancellationToken ct) =>
+        SendAsync(PushPlatform.BrowserPlatform.Format, payloadJson, tagExpression, test, null, null, ct);
+
+    /// <summary>Native send in one <paramref name="format"/> (browser, fcmV1, apple) to a tag expression.</summary>
+    public async Task<SendOutcome> SendAsync(string format, string payloadJson, string tagExpression, bool test,
+        IReadOnlyDictionary<string, string>? headers, string? apiVersion, CancellationToken ct)
     {
-        using var request = Create(HttpMethod.Post, "messages/" + (test ? "?test" : ""), payloadJson);
-        request.Headers.Add("ServiceBusNotification-Format", "browser");
+        using var request = Create(HttpMethod.Post, "messages/" + (test ? "?test" : ""), payloadJson, apiVersion);
+        request.Headers.Add("ServiceBusNotification-Format", format);
         request.Headers.Add("ServiceBusNotification-Tags", tagExpression);
+        foreach (var (name, value) in headers ?? new Dictionary<string, string>()) request.Headers.TryAddWithoutValidation(name, value);
         using var response = await _http.SendAsync(request, ct);
         var text = await response.Content.ReadAsStringAsync(ct);
         var outcome = new SendOutcome { HttpStatus = (int)response.StatusCode, Raw = text };
@@ -78,10 +97,10 @@ public sealed class NotificationHubRest
         return outcome;
     }
 
-    private HttpRequestMessage Create(HttpMethod method, string path, string? json)
+    private HttpRequestMessage Create(HttpMethod method, string path, string? json, string? apiVersion = null)
     {
         var separator = path.Contains('?') ? "&" : "?";
-        var url = $"{_baseUrl}/{path}{separator}api-version={ApiVersion}";
+        var url = $"{_baseUrl}/{path}{separator}api-version={apiVersion ?? ApiVersion}";
         var request = new HttpRequestMessage(method, url);
         request.Headers.TryAddWithoutValidation("Authorization", SasToken(_baseUrl));
         if (json != null) request.Content = new StringContent(json, Encoding.UTF8, "application/json");
