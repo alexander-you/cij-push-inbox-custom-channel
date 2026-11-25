@@ -139,8 +139,8 @@ Only needed if your own Android or iOS app receives the push. The template confi
 ## 5. Configure CIJ and run the first test
 
 1. In CIJ settings, add a **Push + Inbox** channel instance (app key, for example `contoso-demo-app`), then run step 4.3 with its id.
-2. Open `WEB_URL?appKey=<app key>&recipientKey=<recipient>` in Edge or Chrome, for example `…/?appKey=contoso-demo-app&recipientKey=%2B972500000000` (`%2B` is `+`). Select **Subscribe** and allow notifications.
-3. In a CIJ message for the Push + Inbox channel, use **Test send**. Enter the same recipient value, choose a preview contact if the message has personalization, and send.
+2. Open `WEB_URL?appKey=<app key>&recipientKey=contact_<contact id>` in Edge or Chrome, using the ID of the contact you'll put in the test journey, for example `…/?appKey=contoso-demo-app&recipientKey=contact_00000000-0000-0000-0000-000000000001`. Select **Subscribe** and allow notifications. Journey sends address `contact_<contact id>` ([developer integration, identifiers](developer-integration.md#identifiers)). Taking the key from the URL is a test-harness shortcut only.
+3. In a CIJ message for the Push + Inbox channel, use **Test send**. Test sends have no contact ID, so the recipient key is whatever you type: enter the same `contact_<contact id>` value, choose a preview contact if the message has personalization, and send.
 4. Expected: a browser notification, and the item in the PWA inbox. Test sends carry an empty `RequestId`, so no delivery report is sent for them.
 
 For a real send, build a short journey: a trigger or segment, then a **Push + Inbox** message tile. The delivery status, and clicks on the tracked links, show in the tile's analytics after a delay of **tens of minutes**.
@@ -155,7 +155,7 @@ Troubleshooting ([full guide](troubleshooting.md)): Application Insights shows `
 3. **Channel definition:** `GET msdyn_channeldefinitions(b0d2cb5f-fc8a-4f71-88fd-3f494aee6df2)` returns `msdyn_outboundendpointurltemplate` = `/alex_PushOutbound`, and its `msdyn_channelmessageparts` returns 7 rows.
 4. **CIJ settings:** **Push + Inbox** appears among the custom channels, and adding a channel instance opens the *Push sender* form. ([Custom channel instance](https://learn.microsoft.com/dynamics365/customer-insights/journeys/real-time-marketing-define-custom-channel-instance))
 5. **Outbound API:** `POST alex_PushOutbound` with `{"payload":"{…}"}` returns `Sent` and a `MessageId` once step 4.3 is done (`NotSent` / `ChannelApiNotConfigured` while the environment variable is empty).
-6. **Inbox API:** `GET {API_BASE_URL}/inbox?appKey=<app key>&recipientKey=<recipient>` returns the item.
+6. **Inbox API:** `GET {API_BASE_URL}/inbox?appKey=<app key>&recipientKey=contact_<contact id>` returns the item.
 7. **Hebrew labels:** `python3 tools/l10n/translations.py verify https://<org>.crm.dynamics.com` prints `problems: 0`. A user with Hebrew as UI language sees Hebrew, right-to-left forms and views. ([Personal options (language)](https://learn.microsoft.com/power-apps/user/set-personal-options))
 
 ## Upgrade

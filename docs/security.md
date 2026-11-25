@@ -64,15 +64,15 @@ See the diagrams in [architecture.md](architecture.md).
 
 | Data element | Classification | Where it is stored or processed |
 |---|---|---|
-| **Recipient key.** The CIJ `To` value, usually a phone number, normalized to lowercase with `+` and spaces removed. | **Personal data** (direct identifier) | Dataverse/CIJ (source). Plug-in memory, not traced. Service Bus message (transient). Cosmos DB `inboxItems` (partition key) and `dispatches`. Notification Hubs tag, as a SHA-256 hash ([SEC-12](#sec-12-personal-data-in-notification-hubs-tags)). Application Insights, as a 12-character hash prefix ([SEC-15](#sec-15-logging-and-monitoring-without-personal-data)). The PWA's browser local storage and Inbox API query string ([SEC-10](#sec-10-inbox-api-end-user-authentication-and-authorization)). |
+| **Recipient key.** For journey sends, `contact_<contactid>` or `lead_<leadid>` from CIJ's `MarketingAppContext`; for test sends, the typed `To` value. Normalized to lowercase with `+` and spaces removed. | **Personal data** (direct identifier) | Dataverse/CIJ (source). Plug-in memory, not traced. Service Bus message (transient). Cosmos DB `inboxItems` (partition key) and `dispatches`. Notification Hubs tag, as a SHA-256 hash ([SEC-12](#sec-12-personal-data-in-notification-hubs-tags)). Application Insights, as a 12-character hash prefix ([SEC-15](#sec-15-logging-and-monitoring-without-personal-data)). The PWA's browser local storage and Inbox API query string ([SEC-10](#sec-10-inbox-api-end-user-authentication-and-authorization)). |
 | **Message content:** title, body, image URL, action URL | **Personal data / confidential.** The content is marketer-authored and may be personalized with contact data. | Service Bus (transient). Cosmos DB `inboxItems`. The encrypted Web Push payload ([SEC-17](#sec-17-third-party-push-services)). The end-user device. |
 | **Push subscription:** browser endpoint URL, `p256dh`, `auth` | **Personal data** (device identifier) | Notification Hubs installation. The browser. |
 | **CIJ identifiers:** `RequestId`, `CustomerJourneyId`, `MessageId` | Internal | Cosmos DB, Application Insights, Dataverse |
 | **Channel API key, Notification Hubs connection string, VAPID private key** | **Secret** | See [SEC-06](#sec-06-secrets-management). |
 
-- **Residual risk:** whether the recipient key is a phone number, an e-mail address or an opaque ID depends on which CIJ attribute the customer maps to the channel.
+- **Residual risk:** for journey sends the recipient key is a Dataverse record ID, which isn't a direct identifier by itself but links to the contact. Test sends use whatever is typed, for example a phone number.
 - **Customer responsibility:**
-  - Prefer an opaque, app-specific identifier over a phone number when the customer's app can supply one.
+  - Use test sends with test values, not real customers' phone numbers.
   - Classify message content under the customer's own policy.
   - Don't place secrets or special-category data in push content.
 - **Sources:** [Custom channels in CIJ](https://learn.microsoft.com/dynamics365/customer-insights/journeys/real-time-marketing-extend-outreach-custom-channels), [Custom channel custom APIs](https://learn.microsoft.com/dynamics365/customer-insights/journeys/real-time-marketing-custom-channel-custom-api).
@@ -262,7 +262,7 @@ See the diagrams in [architecture.md](architecture.md).
   - Every read, mark-read and delete operation is scoped to the caller-supplied `recipientKey` partition and checks `appKey`.
 - **Residual risk: CRITICAL for production.**
   - The Inbox API is **anonymous** (`AuthorizationLevel.Anonymous`).
-  - It identifies the user only by the `appKey` and `recipientKey` query values. Anyone who knows or guesses a recipient key (for example a phone number) can:
+  - It identifies the user only by the `appKey` and `recipientKey` query values. Anyone who knows or obtains a recipient key (a contact ID, or the value used for a test send) can:
     - read that person's inbox;
     - mark and delete items;
     - register a browser to receive that person's pushes.
@@ -300,7 +300,7 @@ See the diagrams in [architecture.md](architecture.md).
   - Device installations are tagged `rk:<SHA-256 hex of the recipient key>` and `app:<appKey>`.
   - **Transitional:** devices registered before this change still carry a plain `rk:<recipientKey>` tag until they register again. The Dispatcher matches either form, using the expression `(rk:<hash> || rk:<key>) && app:<appKey>`.
 - **Residual risk:**
-  - An unsalted SHA-256 of a phone number is **pseudonymous, not anonymous**, because phone numbers can be enumerated.
+  - An unsalted SHA-256 of a recipient key is **pseudonymous, not anonymous**: a known contact ID can be hashed and matched, and test-send values such as phone numbers can be enumerated.
   - Plain legacy tags remain until those devices re-register.
 - **Planned:**
   - Keyed hash (HMAC) with a key in Key Vault.

@@ -18,14 +18,40 @@ For developers of the customer's own web, Android or iOS app. To receive Push + 
 |---|---|---|
 | `apiBaseUrl` | The `API_BASE_URL` output of `azd up` (`https://<function-app>.azurewebsites.net/api`) | — |
 | `appKey` | The **App key** on the channel instance in CIJ ([configuration](configuration.md)) | The app key of the channel instance that sends the message |
-| `recipientKey` | Your app's identifier for the signed-in customer, usually the phone number used as the CIJ recipient | The CIJ `To` value. Both sides are normalized the same way: lowercase, `+` and spaces removed, other characters outside `[a-z0-9_@#.:-]` removed. Hyphens are **kept**, so use the same phone format on both sides. |
+| `recipientKey` | The CIJ record of the signed-in customer: **`contact_<contactid>`** (or `lead_<leadid>` for lead journeys). Your backend gives it to the app after sign-in; see [How your app gets the recipient key](#how-your-app-gets-the-recipient-key). | **Journey sends:** `lower(UserEntityType + "_" + UserId)` from the request's `MarketingAppContext`, for example `contact_6f1c…`. **Test sends only:** `MarketingAppContext.UserId` and `UserEntityType` are null ([Custom channel custom APIs](https://learn.microsoft.com/dynamics365/customer-insights/journeys/real-time-marketing-custom-channel-custom-api)), so the backend uses the value typed in the test-send box (`To`). Never use a phone number as the recipient key of a production app. |
 | `installationId` | Generated once per device by your app and persisted | Stable for the device |
+
+### How the backend builds the recipient key (`ChannelApi.cs`)
+
+1. If `MarketingAppContext.UserId` and `UserEntityType` are both present (a journey send), the key is `{UserEntityType}_{UserId}`.
+2. Otherwise (a test send), the key is the `To` value.
+3. Either way it's normalized with `Keys.Recipient` (`Models.cs`): lowercase, trimmed, every character outside `[a-z0-9_@#.:-]` removed (so `+` and spaces go; hyphens stay), and cut to 100 characters. `POST /devices` applies the same function, so `contact_6F1C…` and `contact_6f1c…` match.
+
+A journey send to a contact whose app registered with a phone number, or a test send typed as `contact_<id>` when the app registered with a phone number, reaches nobody (`NoDevice`). **Verified:** journey sends to `contact_<id>` registrations, and test sends to a phone-number registration, in a test environment.
+
+### How your app gets the recipient key
+
+The app must get `contact_<contactid>` from **your backend after sign-in**, never from a URL, a deep link or user input:
+
+1. The customer signs in to your app with your identity provider.
+2. Your backend maps that user to the Dataverse contact. Options, depending on what you already have:
+   - your identity system already stores the contact ID (for example as a user attribute or token claim set at sign-up);
+   - you keep your own customer number on the contact as an **alternate key** and look up the contact ID with it ([Define alternate keys](https://learn.microsoft.com/power-apps/developer/data-platform/define-alternate-keys-entity), [Retrieve a record using an alternate key](https://learn.microsoft.com/power-apps/developer/data-platform/webapi/retrieve-entity-using-web-api#retrieve-record-using-an-alternate-key));
+   - you query contacts by a **verified** attribute such as a verified e-mail ([Query data using the Web API](https://learn.microsoft.com/power-apps/developer/data-platform/webapi/query/overview)). Don't map on unverified input.
+3. Your backend returns `contact_<contactid>` (lowercase GUID) to the app, and the app registers the device with it and keeps it with its login state.
+4. If a journey targets leads, map to `lead_<leadid>` the same way.
+
+This mapping isn't part of this repository; it belongs to your app's backend. In production it should sit behind the authenticated Inbox API, which derives the recipient key from the signed-in user ([What must change for production](#what-must-change-for-production)).
+
+**The reference PWA is a test harness and doesn't do this.** It takes `recipientKey` from the form field, which is pre-filled from the `?recipientKey=` query parameter or `localStorage` (`app.js`), and keeps it in `localStorage`. That's convenient for testing and is not a pattern to copy.
 
 ## 1. Register the device
 
 ### Web (implemented, reference: `src/web/app.js`)
 
 The browser flow uses the standard Push API with VAPID ([Push API](https://developer.mozilla.org/docs/Web/API/Push_API), [PushManager.subscribe](https://developer.mozilla.org/docs/Web/API/PushManager/subscribe), [PushSubscription.getKey](https://developer.mozilla.org/docs/Web/API/PushSubscription/getKey)). The backend registers the subscription as a Notification Hubs browser installation ([Notification Hubs browser push](https://learn.microsoft.com/azure/notification-hubs/browser-push)).
+
+The reference PWA reads `recipientKey` from its form (pre-filled from `?recipientKey=` or `localStorage`) for testing. A production web app sends the `contact_<contactid>` its backend returned after sign-in ([How your app gets the recipient key](#how-your-app-gets-the-recipient-key)).
 
 ```js
 // 1. Permission and service worker
@@ -75,6 +101,8 @@ await fetch(`${apiBaseUrl}/devices`, {
 ### Native apps: registration contract (backend implemented; clients untested)
 
 `POST {apiBaseUrl}/devices` takes the same `appKey`, `recipientKey` and `installationId`, plus `platform` and `pushToken`:
+
+`recipientKey` is the `contact_<contactid>` your backend returned after sign-in ([How your app gets the recipient key](#how-your-app-gets-the-recipient-key)), never a phone number or a value from a link.
 
 ```json
 { "platform": "fcmv1", "appKey": "…", "recipientKey": "…", "installationId": "…", "pushToken": "<FCM registration token>" }

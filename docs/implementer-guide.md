@@ -60,9 +60,9 @@ flowchart LR
 | 5 | Connect Dataverse and Azure | `deploy/connect-azure.sh <url>`. This sets the environment variable and creates the app user with **Basic User** and **Push Inbox Log Writer** ([installation §4.3](installation.md#43-connect-dataverse-to-azure)). | The app user exists with both roles. |
 | 6 | Create the channel instance | In CIJ settings, add **Push + Inbox** with an **App key** ([configuration](configuration.md#channel-instance-push-sender)). | The *Push sender* form opens. |
 | 7 | Assign the reader role | Give **Push Inbox Log Reader** to marketers who read the log. | They see *Push message logs* rows. |
-| 8 | Subscribe a test browser | Open `WEB_URL?appKey=<app key>&recipientKey=<recipient>` and select **Subscribe** ([installation §5](installation.md#5-configure-cij-and-run-the-first-test)). | The trace `Browser installation … registered`. |
-| 9 | Test send | Test send from the message editor. | A notification and an inbox item arrive. No delivery report is sent for test sends. **Verified.** |
-| 10 | Journey send | A minimal journey with a Push + Inbox tile, sent to a contact whose recipient value matches the subscription. | The trace `Delivery report Delivered sent for request …`. After tens of minutes, the tile shows Sent/Delivered. **Verified.** |
+| 8 | Subscribe a test browser | Open `WEB_URL?appKey=<app key>&recipientKey=contact_<contact id>` (the contact your test journey targets) and select **Subscribe** ([installation §5](installation.md#5-configure-cij-and-run-the-first-test)). | The trace `Browser installation … registered`. |
+| 9 | Test send | Test send from the message editor. The recipient key is the value you type in the test-send box, so type the same `contact_<contact id>`. | A notification and an inbox item arrive. No delivery report is sent for test sends. **Verified.** |
+| 10 | Journey send | A minimal journey with a Push + Inbox tile, sent to the contact from step 8. Journey sends use `contact_<contact id>` as the recipient key ([developer integration, identifiers](developer-integration.md#identifiers)). | The trace `Delivery report Delivered sent for request …`. After tens of minutes, the tile shows Sent/Delivered. **Verified.** |
 | 11 | Tap | Set the **Tap action link** to the app URL, then send and tap the notification. | The app opens on the message. A *Clicked* log row is written, and CIJ shows *Unique clicks* after the latency. **Verified.** |
 
 The list of verification calls is in [installation §6](installation.md#6-verify).
